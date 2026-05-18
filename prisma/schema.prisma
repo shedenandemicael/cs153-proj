@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum ItemStatus {
+  PROCESSING
+  READY
+  PUBLISHED
+  FAILED
+  INTAKE
+  GENERATED
+  REVIEWED
+}
+
+enum DraftStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+model Batch {
+  id          String   @id @default(cuid())
+  status      String   @default("pending") // pending | processing | completed
+  totalItems  Int
+  processed   Int      @default(0)
+  succeeded   Int      @default(0)
+  failed      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  items       Item[]
+}
+
+model Item {
+  id              String          @id @default(cuid())
+  batchId         String?
+  batch           Batch?          @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  batchIndex      Int?
+  status          ItemStatus      @default(INTAKE)
+  notesBrand      String?
+  notesSize       String?
+  notesCondition  String?
+  notesDefects    String?
+  purchasePrice   Float?
+  minPrice        Float?
+  freeformNotes   String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  images          UploadedImage[]
+  listingDraft    ListingDraft?
+  comparables     ComparableListing[]
+  evaluation      EvaluationMetric?
+  agentRuns       AgentRun[]
+}
+
+model AgentRun {
+  id          String    @id @default(cuid())
+  itemId      String
+  item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  status      String    // running | completed | failed
+  steps       String    // JSON AgentStepLog[]
+  error       String?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+}
+
+model UploadedImage {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  filename  String
+  path      String
+  mimeType  String
+  sizeBytes Int
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model ListingDraft {
+  id                  String      @id @default(cuid())
+  itemId              String      @unique
+  item                Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  status              DraftStatus @default(DRAFT)
+  title               String
+  descriptionBullets  String      // JSON array stored as string
+  itemSpecifics       String      // JSON object stored as string
+  conditionDesc       String
+  categoryId          String?
+  categoryName        String?
+  startingPrice       Float
+  buyItNowPrice       Float?
+  shippingAssumptions String?
+  confidenceScore     Float       @default(0)
+  warnings            String?     // JSON array
+  questions           String?     // JSON array
+  pricingRationale    String?
+  pricingMethod       String?     // openai-vision | comparable-stats | fallback
+  userEditsCount      Int         @default(0)
+  approvedAt          DateTime?
+  publishedAt         DateTime?
+  ebayOfferId         String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+}
+
+model ComparableListing {
+  id          String   @id @default(cuid())
+  itemId      String
+  item        Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  ebayItemId  String?
+  title       String
+  price       Float
+  condition   String?
+  soldDate    DateTime?
+  url         String?
+  listingType String   @default("active") // active | sold | mock
+  source      String   @default("mock") // mock | ebay-browse | ebay-sold
+  createdAt   DateTime @default(now())
+}
+
+model EvaluationMetric {
+  id                    String   @id @default(cuid())
+  itemId                String   @unique
+  item                  Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  timeSavedMinutes      Float    @default(0)
+  fieldsGenerated       Int      @default(0)
+  fieldsEditedByUser    Int      @default(0)
+  qualityScore          Float?   // 1-5 rubric
+  qualityNotes          String?
+  generationStartedAt   DateTime?
+  generationCompletedAt DateTime?
+  reviewCompletedAt     DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
