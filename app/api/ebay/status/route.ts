@@ -1,8 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getEbayResearchClient } from "@/lib/ebay";
 
-/** GET /api/ebay/status — research API configuration (fetch-only) */
-export async function GET() {
+/** GET /api/ebay/status — research API configuration (fetch-only). ?health=true runs live probes. */
+export async function GET(request: NextRequest) {
   const client = getEbayResearchClient();
-  return NextResponse.json(client.getStatus());
+  const health = request.nextUrl.searchParams.get("health") === "true";
+  const status = await client.getStatus({ health });
+  return NextResponse.json(status);
 }

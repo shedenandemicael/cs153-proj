@@ -58,7 +58,40 @@ AGENT_BLOCKING_WARNINGS=authenticity,recall,counterfeit
 
 See `.env.example` for `OPENAI_*`, `EBAY_*`, and `PRICING_PROVIDER`.
 
-eBay fetch-only research: `lib/ebay/fetch/`. Test: `GET /api/ebay/comparables?q=...`
+eBay fetch-only research: `lib/ebay/fetch/`.
+
+**Comps setup:** add `EBAY_CLIENT_ID` and `EBAY_CLIENT_SECRET` from [eBay Developer](https://developer.ebay.com/). Active listings use the **Browse API** on `EBAY_RESEARCH_ENV` (defaults to `production` because sandbox has almost no inventory). Sold comps use **Marketplace Insights** if your key has access (often 403 until approved).
+
+```bash
+# Verify config + live API connectivity
+curl "http://localhost:3000/api/ebay/status?health=true"
+
+# Test comparables search
+curl "http://localhost:3000/api/ebay/comparables?q=nike+air+max+90&limit=8"
+```
+
+Response `meta` includes `activeCount`, `soldCount`, `researchEnv`, `searchAttempts`, and whether mock fallback was used.
+
+### Production keyset compliance (subscribe, not opt out)
+
+Production keys stay disabled until you **subscribe** to [Marketplace Account Deletion](https://developer.ebay.com/marketplace-account-deletion) notifications.
+
+1. Deploy the app to an **HTTPS** URL (eBay rejects `localhost`). Use Vercel, ngrok, etc.
+2. Set in `.env`:
+   ```bash
+   EBAY_NOTIFICATION_VERIFICATION_TOKEN=your-random-32-to-80-char-token
+   EBAY_NOTIFICATION_ENDPOINT_URL=https://YOUR-DOMAIN/api/ebay/notifications/account-deletion
+   ```
+3. In [Application Keys](https://developer.ebay.com/my/keys) → your app → **Alerts and Notifications**:
+   - Select **Marketplace Account Deletion**
+   - Alert email: your email
+   - Notification endpoint URL: same as `EBAY_NOTIFICATION_ENDPOINT_URL`
+   - Verification token: same as `EBAY_NOTIFICATION_VERIFICATION_TOKEN`
+   - Click **Save** (eBay sends a GET challenge; the app responds automatically)
+4. Click **Send Test Notification** — should return 200 OK
+5. Production keyset becomes **compliant/active**
+
+The webhook purges `EbayAccountRecord` rows (OAuth tokens / user IDs) when eBay sends a deletion event.
 
 ## API routes
 

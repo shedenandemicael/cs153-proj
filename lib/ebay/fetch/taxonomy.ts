@@ -1,4 +1,5 @@
 import type { CategorySuggestion } from "../types";
+import { getEbayResearchConfig } from "@/lib/utils/ebay-config";
 import { ebayFetch, US_CATEGORY_TREE_ID } from "./http";
 import { MOCK_CATEGORIES } from "../mock-data";
 
@@ -13,11 +14,18 @@ interface TaxonomyResponse {
 }
 
 /**
- * Category suggestions for narrowing Insights search.
+ * Category suggestions for narrowing search.
  * https://developer.ebay.com/api-docs/commerce/taxonomy/resources/category_tree/methods/getCategorySuggestions
  */
 export async function getCategorySuggestions(query: string): Promise<CategorySuggestion[]> {
-  if (!query.trim()) return MOCK_CATEGORIES;
+  const config = getEbayResearchConfig();
+  if (!query.trim()) {
+    return config.isConfigured ? [] : MOCK_CATEGORIES;
+  }
+
+  if (!config.isConfigured) {
+    return MOCK_CATEGORIES;
+  }
 
   try {
     const { data, status } = await ebayFetch<TaxonomyResponse>(
@@ -26,7 +34,8 @@ export async function getCategorySuggestions(query: string): Promise<CategorySug
     );
 
     if (status < 200 || status >= 300) {
-      return MOCK_CATEGORIES;
+      console.warn("[taxonomy] category suggestions failed:", data.errors?.[0]?.message ?? status);
+      return [];
     }
 
     const suggestions =
@@ -37,9 +46,10 @@ export async function getCategorySuggestions(query: string): Promise<CategorySug
         }))
         .filter((s) => s.categoryId && s.categoryName) ?? [];
 
-    return suggestions.length > 0 ? suggestions : MOCK_CATEGORIES;
-  } catch {
-    return MOCK_CATEGORIES;
+    return suggestions;
+  } catch (error) {
+    console.warn("[taxonomy] category suggestions error:", error);
+    return [];
   }
 }
 
@@ -51,4 +61,18 @@ export async function resolveCategoryId(
   if (explicitCategoryId) return explicitCategoryId;
   const suggestions = await getCategorySuggestions(query);
   return suggestions[0]?.categoryId;
+}
+
+/** Verify Taxonomy API connectivity. */
+export async function probeTaxonomyApi(): Promise<{ ok: boolean; categoryCount: number; error?: string }> {
+  try {
+    const suggestions = await getCategorySuggestions("shoes");
+    return { ok: suggestions.length > 0, categoryCount: suggestions.length };
+  } catch (error) {
+    return {
+      ok: false,
+      categoryCount: 0,
+      error: error instanceof Error ? error.message : "Taxonomy probe failed",
+    };
+  }
 }

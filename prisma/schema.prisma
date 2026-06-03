@@ -137,3 +137,16 @@ model EvaluationMetric {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
+
+/** OAuth-linked eBay users and tokens — purged on marketplace account deletion notifications. */
+model EbayAccountRecord {
+  id             String    @id @default(cuid())
+  ebayUserId     String    @unique
+  username       String?
+  eiasToken      String?
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}

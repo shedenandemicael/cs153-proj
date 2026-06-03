@@ -1,4 +1,4 @@
-/** Fetch-only eBay market research types */
+import type { EbayHealthCheck } from "./health";
 
 export type ComparableListingType = "active" | "sold" | "mock";
 
@@ -30,11 +30,16 @@ export interface ComparableSearchResult {
   meta: {
     query: string;
     configured: boolean;
+    researchEnv: string;
     activeCount: number;
     soldCount: number;
     mockCount: number;
     soldApiAvailable: boolean;
+    activeApiAvailable: boolean;
     soldApiError?: string;
+    activeApiError?: string;
+    searchAttempts: string[];
+    usedMockFallback: boolean;
   };
 }
 
@@ -47,8 +52,11 @@ export interface CategorySuggestion {
 export interface EbayResearchStatus {
   configured: boolean;
   environment: string;
+  researchEnv: string;
   marketplaceId: string;
   fetchActive: boolean;
   fetchSold: boolean;
+  allowMockFallback: boolean;
   soldInsightsNote: string;
+  health?: EbayHealthCheck;
 }

@@ -17,6 +17,7 @@ export interface SoldSearchOutcome {
   items: EbayComparable[];
   available: boolean;
   error?: string;
+  attempt?: { query: string; categoryId?: string };
 }
 
 /**
@@ -46,17 +47,20 @@ export async function searchSoldListings(
       queryParams
     );
 
+    const attempt = { query, categoryId: options.categoryId };
+
     if (status === 403 || status === 401) {
       return {
         items: [],
         available: false,
         error: "Marketplace Insights API not enabled for your eBay developer account.",
+        attempt,
       };
     }
 
     if (status < 200 || status >= 300) {
       const msg = data.errors?.[0]?.message ?? `Marketplace Insights error (${status})`;
-      return { items: [], available: false, error: msg };
+      return { items: [], available: false, error: msg, attempt };
     }
 
     const items: EbayComparable[] = [];
@@ -75,12 +79,13 @@ export async function searchSoldListings(
       });
     }
 
-    return { items, available: true };
+    return { items, available: true, attempt };
   } catch (error) {
     return {
       items: [],
       available: false,
       error: error instanceof Error ? error.message : "Sold search failed",
+      attempt: { query, categoryId: options.categoryId },
     };
   }
 }

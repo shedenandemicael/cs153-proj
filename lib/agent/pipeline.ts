@@ -114,7 +114,9 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
       steps,
       "fetch_comparables",
       "completed",
-      `Found ${comparablesRaw.length} comparables (${ebayMeta.activeCount} active, ${ebayMeta.soldCount} sold).`
+      `Found ${comparablesRaw.length} comparables (${ebayMeta.activeCount} active, ${ebayMeta.soldCount} sold${
+        ebayMeta.usedMockFallback ? ", mock fallback" : ""
+      }, env=${ebayMeta.researchEnv}).`
     );
 
     const comparables = comparablesRaw.map((c) => ({

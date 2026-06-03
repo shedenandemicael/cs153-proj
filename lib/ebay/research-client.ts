@@ -1,4 +1,5 @@
-import { getEbayConfig } from "@/lib/utils/ebay-config";
+import { getEbayResearchConfig } from "@/lib/utils/ebay-config";
+import { checkEbayResearchHealth } from "./health";
 import { fetchComparables } from "./fetch/comparables";
 import { getCategorySuggestions } from "./fetch/taxonomy";
 import type {
@@ -13,7 +14,7 @@ import type {
  * No listing creation, OAuth user flows, or publish operations.
  */
 export class EbayResearchClient {
-  private config = getEbayConfig();
+  private config = getEbayResearchConfig();
 
   get isConfigured(): boolean {
     return this.config.isConfigured;
@@ -23,19 +24,28 @@ export class EbayResearchClient {
     return this.config.env;
   }
 
-  getStatus(): EbayResearchStatus {
-    const fetchSold = (process.env.EBAY_FETCH_SOLD ?? "true").toLowerCase() !== "false";
-    const fetchActive = (process.env.EBAY_FETCH_ACTIVE ?? "true").toLowerCase() !== "false";
+  get researchEnvironment(): string {
+    return this.config.researchEnv;
+  }
 
-    return {
+  async getStatus(options: { health?: boolean } = {}): Promise<EbayResearchStatus> {
+    const status: EbayResearchStatus = {
       configured: this.config.isConfigured,
       environment: this.config.env,
+      researchEnv: this.config.researchEnv,
       marketplaceId: "EBAY_US",
-      fetchActive,
-      fetchSold,
+      fetchActive: this.config.fetchActive,
+      fetchSold: this.config.fetchSold,
+      allowMockFallback: this.config.allowMockFallback,
       soldInsightsNote:
-        "Sold comps use Marketplace Insights API (limited release). If unavailable, only active Browse listings are returned.",
+        "Sold comps use Marketplace Insights (limited release). Active comps use Browse API on the research environment (production by default).",
     };
+
+    if (options.health) {
+      status.health = await checkEbayResearchHealth();
+    }
+
+    return status;
   }
 
   /** Primary method: fetch sold + active comparables for pricing */
