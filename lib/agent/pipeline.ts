@@ -1,7 +1,13 @@
 import { getLLMProvider } from "@/lib/ai";
+import { identifyItemFromImages } from "@/lib/ai/identify-item";
 import { getEbayResearchClient } from "@/lib/ebay";
 import { createInventoryItemStub, createOfferDraftStub } from "@/lib/ebay/sell-stubs";
 import { prisma } from "@/lib/db/prisma";
+import {
+  buildMarketSearchQuery,
+  enrichNotesFromIdentification,
+  needsVisionIdentification,
+} from "@/lib/agent/market-search";
 import { determinePrice } from "@/lib/pricing";
 import { applyPriceToListing } from "@/lib/pricing/apply-to-listing";
 import { getAgentConfig } from "./config";
@@ -82,8 +88,34 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
       freeformNotes: item.freeformNotes ?? undefined,
     };
 
-    const searchQuery =
-      [notes.brand, notes.size, notes.freeformNotes].filter(Boolean).join(" ") || "resale item";
+    const imagePaths = item.images.map((img) => img.path);
+    let enrichedNotes = notes;
+    let identification = null;
+
+    if (needsVisionIdentification(notes, imagePaths)) {
+      step(steps, "identify_item", "running", "Analyzing photos to identify product…");
+      identification = await identifyItemFromImages(imagePaths, notes);
+      if (identification) {
+        enrichedNotes = enrichNotesFromIdentification(notes, identification);
+        step(
+          steps,
+          "identify_item",
+          "completed",
+          `Identified: ${identification.ebaySearchQuery}${
+            identification.size ? ` (size ${identification.size})` : ""
+          }.`
+        );
+      } else {
+        step(
+          steps,
+          "identify_item",
+          "completed",
+          "Could not identify item from photos — using seller notes only."
+        );
+      }
+    }
+
+    const searchQuery = buildMarketSearchQuery(enrichedNotes, identification);
 
     step(steps, "fetch_comparables", "running", `Searching market: "${searchQuery}"`);
     const ebay = getEbayResearchClient();
@@ -127,10 +159,12 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
       url: c.url,
     }));
 
-    const imagePaths = item.images.map((img) => img.path);
-
     step(steps, "determine_price", "running", "Analyzing photos and market data for pricing…");
-    const priceRecommendation = await determinePrice({ notes, imagePaths, comparables });
+    const priceRecommendation = await determinePrice({
+      notes: enrichedNotes,
+      imagePaths,
+      comparables,
+    });
     step(
       steps,
       "determine_price",
@@ -142,7 +176,7 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     const llm = getLLMProvider();
     let generated = await llm.generateListing({
       itemId,
-      notes,
+      notes: enrichedNotes,
       imagePaths,
       comparables,
       priceRecommendation: {

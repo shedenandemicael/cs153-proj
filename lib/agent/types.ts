@@ -1,4 +1,5 @@
 export type AgentStepId =
+  | "identify_item"
   | "fetch_comparables"
   | "determine_price"
   | "generate_listing"
