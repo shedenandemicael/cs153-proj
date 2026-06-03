@@ -32,8 +32,9 @@ Human actions are optional: **re-run agent**, **delete**, **copy listing**.
 
 ```bash
 cp .env.example .env
+# Add Neon DATABASE_URL + DATABASE_URL_UNPOOLED (see Deploy section)
 npm install
-npx prisma migrate dev
+npm run db:deploy
 npm run dev
 ```
 
@@ -92,6 +93,18 @@ Production keys stay disabled until you **subscribe** to [Marketplace Account De
 5. Production keyset becomes **compliant/active**
 
 The webhook purges `EbayAccountRecord` rows (OAuth tokens / user IDs) when eBay sends a deletion event.
+
+## Deploy to Vercel (Neon Postgres)
+
+1. Connect Neon in Vercel Storage with prefix **`DATABASE`** (creates `DATABASE_URL` + `DATABASE_URL_UNPOOLED`).
+2. Add remaining secrets in Vercel → Settings → Environment Variables (Production + Preview):
+   - `OPENAI_API_KEY`, `EBAY_*`, `NEXT_PUBLIC_APP_URL`, `EBAY_NOTIFICATION_*`, agent settings (see `.env.example`)
+3. Push to GitHub — Vercel runs `vercel-build` → `prisma migrate deploy` then `next build`.
+4. Set `NEXT_PUBLIC_APP_URL` and `EBAY_NOTIFICATION_ENDPOINT_URL` to your `https://….vercel.app` URL, then redeploy.
+
+**Local dev with Neon:** copy `DATABASE_URL` and `DATABASE_URL_UNPOOLED` from Vercel (or Neon dashboard) into `.env`, then `npm run db:deploy`.
+
+**Note:** Photo uploads still write to disk (`public/uploads`) and won't persist on Vercel until blob storage is added.
 
 ## API routes
 
