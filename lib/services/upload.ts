@@ -1,6 +1,8 @@
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
+import { put } from "@vercel/blob";
 import { v4 as uuidv4 } from "uuid";
+import { localItemUploadDir, useBlobStorage } from "@/lib/services/upload-paths";
 
 const MAX_IMAGES = 5;
 const MAX_SIZE_BYTES = 8 * 1024 * 1024;
@@ -19,21 +21,45 @@ export async function saveUploadedImages(
     throw new Error(`Maximum ${maxImages} images allowed`);
   }
 
-  const uploadDir = process.env.UPLOAD_DIR ?? "public/uploads";
-  const itemDir = path.join(process.cwd(), uploadDir, itemId);
+  if (useBlobStorage()) {
+    return saveToBlob(itemId, files);
+  }
+  return saveToLocalDisk(itemId, files);
+}
+
+async function saveToBlob(
+  itemId: string,
+  files: File[]
+): Promise<Array<{ filename: string; path: string; mimeType: string; sizeBytes: number }>> {
+  const saved: Array<{ filename: string; path: string; mimeType: string; sizeBytes: number }> = [];
+
+  for (const file of files) {
+    validateFile(file);
+    const ext = path.extname(file.name) || ".jpg";
+    const key = `items/${itemId}/${uuidv4()}${ext}`;
+    const blob = await put(key, file, { access: "public", contentType: file.type });
+    saved.push({
+      filename: file.name,
+      path: blob.url,
+      mimeType: file.type,
+      sizeBytes: file.size,
+    });
+  }
+
+  return saved;
+}
+
+async function saveToLocalDisk(
+  itemId: string,
+  files: File[]
+): Promise<Array<{ filename: string; path: string; mimeType: string; sizeBytes: number }>> {
+  const itemDir = localItemUploadDir(itemId);
   await mkdir(itemDir, { recursive: true });
 
   const saved: Array<{ filename: string; path: string; mimeType: string; sizeBytes: number }> = [];
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      throw new Error(`Unsupported file type: ${file.type}`);
-    }
-    if (file.size > MAX_SIZE_BYTES) {
-      throw new Error(`File ${file.name} exceeds 8MB limit`);
-    }
-
+  for (const file of files) {
+    validateFile(file);
     const ext = path.extname(file.name) || ".jpg";
     const filename = `${uuidv4()}${ext}`;
     const publicPath = `/uploads/${itemId}/${filename}`;
@@ -50,4 +76,13 @@ export async function saveUploadedImages(
   }
 
   return saved;
+}
+
+function validateFile(file: File): void {
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    throw new Error(`Unsupported file type: ${file.type}`);
+  }
+  if (file.size > MAX_SIZE_BYTES) {
+    throw new Error(`File ${file.name} exceeds 8MB limit`);
+  }
 }

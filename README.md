@@ -104,7 +104,7 @@ The webhook purges `EbayAccountRecord` rows (OAuth tokens / user IDs) when eBay 
 
 **Local dev with Neon:** copy `DATABASE_URL` and `DATABASE_URL_UNPOOLED` from Vercel (or Neon dashboard) into `.env`, then `npm run db:deploy`.
 
-**Note:** Photo uploads still write to disk (`public/uploads`) and won't persist on Vercel until blob storage is added.
+**Photo uploads on Vercel:** add a [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) store (Storage → Create → Blob). That sets `BLOB_READ_WRITE_TOKEN` automatically. Without it, uploads only work locally (`public/uploads`).
 
 ## API routes
 
