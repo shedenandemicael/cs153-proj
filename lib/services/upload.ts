@@ -2,7 +2,11 @@ import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import { put } from "@vercel/blob";
 import { v4 as uuidv4 } from "uuid";
-import { localItemUploadDir, useBlobStorage } from "@/lib/services/upload-paths";
+import {
+  assertBlobStorageAvailable,
+  localItemUploadDir,
+  useBlobStorage,
+} from "@/lib/services/upload-paths";
 
 const MAX_IMAGES = 5;
 const MAX_SIZE_BYTES = 8 * 1024 * 1024;
@@ -21,6 +25,7 @@ export async function saveUploadedImages(
     throw new Error(`Maximum ${maxImages} images allowed`);
   }
 
+  assertBlobStorageAvailable();
   if (useBlobStorage()) {
     return saveToBlob(itemId, files);
   }
