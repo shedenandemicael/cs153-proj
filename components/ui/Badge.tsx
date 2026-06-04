@@ -1,5 +1,6 @@
 const statusStyles: Record<string, string> = {
   PROCESSING: "bg-blue-100 text-blue-800",
+  AWAITING_INPUT: "bg-amber-100 text-amber-900",
   READY: "bg-green-100 text-green-800",
   PUBLISHED: "bg-emerald-100 text-emerald-900",
   FAILED: "bg-red-100 text-red-800",

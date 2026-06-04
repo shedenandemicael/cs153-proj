@@ -10,6 +10,7 @@ datasource db {
 
 enum ItemStatus {
   PROCESSING
+  AWAITING_INPUT
   READY
   PUBLISHED
   FAILED
@@ -62,8 +63,9 @@ model AgentRun {
   id          String    @id @default(cuid())
   itemId      String
   item        Item      @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  status      String    // running | completed | failed
+  status      String    // running | awaiting_input | completed | failed
   steps       String    // JSON AgentStepLog[]
+  pendingQuestions String? // JSON AgentQuestion[]
   error       String?
   startedAt   DateTime  @default(now())
   completedAt DateTime?

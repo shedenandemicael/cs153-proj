@@ -66,7 +66,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { item: full, agent: agentResult },
-      { status: agentResult.success ? 201 : 422 }
+      {
+        status: agentResult.awaitingInput ? 200 : agentResult.success ? 201 : 422,
+      }
     );
   } catch (error) {
     const status = error instanceof AppError ? error.statusCode : 500;

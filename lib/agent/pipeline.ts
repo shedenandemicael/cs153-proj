@@ -8,10 +8,11 @@ import {
   enrichNotesFromIdentification,
   needsVisionIdentification,
 } from "@/lib/agent/market-search";
+import { buildClarifyingQuestions } from "@/lib/agent/clarifying-questions";
+import type { AgentStepLog, AutonomousRunResult } from "./types";
 import { determinePrice } from "@/lib/pricing";
 import { applyPriceToListing } from "@/lib/pricing/apply-to-listing";
 import { getAgentConfig } from "./config";
-import type { AgentStepLog, AutonomousRunResult } from "./types";
 import { parseJsonArray, stringifyJson } from "@/lib/utils/json";
 import { AppError } from "@/lib/utils/errors";
 import type { ItemNotes } from "@/types";
@@ -116,6 +117,45 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     }
 
     const searchQuery = buildMarketSearchQuery(enrichedNotes, identification);
+    const clarifyingQuestions = buildClarifyingQuestions(enrichedNotes, identification, searchQuery);
+
+    if (clarifyingQuestions.length > 0) {
+      step(
+        steps,
+        "await_user_input",
+        "running",
+        clarifyingQuestions.map((q) => q.question).join(" ")
+      );
+
+      await prisma.item.update({
+        where: { id: itemId },
+        data: {
+          status: "AWAITING_INPUT",
+          notesBrand: enrichedNotes.brand ?? item.notesBrand,
+          notesCondition: enrichedNotes.condition ?? item.notesCondition,
+          freeformNotes: enrichedNotes.freeformNotes ?? item.freeformNotes,
+        },
+      });
+
+      await prisma.agentRun.updateMany({
+        where: { itemId, status: "running" },
+        data: {
+          status: "awaiting_input",
+          steps: stringifyJson(steps),
+          pendingQuestions: stringifyJson(clarifyingQuestions),
+        },
+      });
+
+      return {
+        itemId,
+        success: false,
+        itemStatus: "AWAITING_INPUT",
+        steps,
+        published: false,
+        awaitingInput: true,
+        questions: clarifyingQuestions,
+      };
+    }
 
     step(steps, "fetch_comparables", "running", `Searching market: "${searchQuery}"`);
     const ebay = getEbayResearchClient();

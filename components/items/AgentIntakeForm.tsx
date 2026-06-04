@@ -26,6 +26,11 @@ export function AgentIntakeForm() {
       if (!res.ok && !data.item) {
         throw new Error(data.error ?? "Agent run failed");
       }
+      if (data.agent?.awaitingInput) {
+        router.push(`/items/${data.item.id}`);
+        router.refresh();
+        return;
+      }
       router.push(`/items/${data.item.id}`);
       router.refresh();
     } catch (err) {

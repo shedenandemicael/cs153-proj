@@ -1,5 +1,6 @@
 export type ItemStatus =
   | "PROCESSING"
+  | "AWAITING_INPUT"
   | "READY"
   | "PUBLISHED"
   | "FAILED"

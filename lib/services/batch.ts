@@ -197,7 +197,7 @@ export async function processBatch(batchId: string): Promise<void> {
       const result = await runAutonomousAgent(item.id);
       processed += 1;
       if (result.success) succeeded += 1;
-      else failed += 1;
+      else if (!result.awaitingInput) failed += 1;
     } catch {
       processed += 1;
       failed += 1;

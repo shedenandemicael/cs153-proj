@@ -3,6 +3,7 @@ import type { AgentStepLog } from "@/lib/agent/types";
 
 const STEP_LABELS: Record<string, string> = {
   identify_item: "Photo identification",
+  await_user_input: "Seller input",
   fetch_comparables: "Market research",
   determine_price: "Price analysis",
   generate_listing: "Listing generation",

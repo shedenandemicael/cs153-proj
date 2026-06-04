@@ -6,9 +6,10 @@ import { AgentRunTimeline } from "@/components/agent/AgentRunTimeline";
 import { ListingResult } from "@/components/items/ListingResult";
 import { ComparableList } from "@/components/items/ComparableList";
 import { AgentActions } from "@/components/items/AgentActions";
+import { ItemAgentShell } from "@/components/items/ItemAgentShell";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
-import type { AgentStepLog } from "@/lib/agent/types";
+import type { AgentStepLog, AgentQuestion } from "@/lib/agent/types";
 
 export const dynamic = "force-dynamic";
 
@@ -32,15 +33,21 @@ export default async function ItemAgentPage({
   if (!item) notFound();
 
   const latestRun = item.agentRuns[0];
-  const steps = latestRun
-    ? (JSON.parse(latestRun.steps) as AgentStepLog[])
-  : [];
+  const steps = latestRun ? (JSON.parse(latestRun.steps) as AgentStepLog[]) : [];
+  const pendingQuestions = parseJsonArray<AgentQuestion>(latestRun?.pendingQuestions);
 
   const draft = item.listingDraft;
   const legacyReady = item.status === "GENERATED" || item.status === "REVIEWED";
 
   return (
     <div className="space-y-6">
+      <ItemAgentShell
+        itemId={id}
+        itemStatus={item.status}
+        agentRunStatus={latestRun?.status}
+        pendingQuestions={pendingQuestions}
+      />
+
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <Link href="/" className="text-sm text-blue-600 hover:underline">
@@ -61,6 +68,12 @@ export default async function ItemAgentPage({
 
       {item.status === "PROCESSING" && (
         <Alert variant="info">Agent is processing this item…</Alert>
+      )}
+
+      {item.status === "AWAITING_INPUT" && (
+        <Alert variant="warning">
+          The agent needs your input before it can finish — answer the popup to continue.
+        </Alert>
       )}
 
       {item.status === "FAILED" && (
