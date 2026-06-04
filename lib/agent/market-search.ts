@@ -39,22 +39,31 @@ export function buildMarketSearchQuery(
   notes: ItemNotes,
   identification?: ItemIdentification | null
 ): string {
+  let query: string;
+
   if (identification?.ebaySearchQuery?.trim()) {
-    return identification.ebaySearchQuery.trim();
+    query = identification.ebaySearchQuery.trim();
+  } else {
+    const fromNotes = buildMarketSearchQueryFromNotes(notes);
+    if (fromNotes && !VAGUE_QUERIES.has(fromNotes.toLowerCase())) {
+      query = fromNotes;
+    } else if (identification) {
+      query =
+        [identification.brand, identification.model, identification.productType]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || fromNotes;
+    } else {
+      query = fromNotes;
+    }
   }
 
-  const fromNotes = buildMarketSearchQueryFromNotes(notes);
-  if (fromNotes && !VAGUE_QUERIES.has(fromNotes.toLowerCase())) {
-    return fromNotes;
+  if (notes.size?.trim()) {
+    const size = notes.size.trim();
+    if (!query.toLowerCase().includes(size.toLowerCase())) {
+      query = `${query} ${size}`.trim();
+    }
   }
 
-  if (identification) {
-    const fromVision = [identification.brand, identification.model, identification.productType]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
-    if (fromVision) return fromVision;
-  }
-
-  return fromNotes || "resale item";
+  return query || "resale item";
 }

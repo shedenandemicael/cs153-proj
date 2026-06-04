@@ -12,7 +12,7 @@ Rules:
 - Otherwise price using comparable sales when provided; respect seller minimum price if given.
 - confidenceScore: 0–1 reflecting how certain you are from photos + notes.
 - warnings: flag uncertainty, missing info, or compliance issues (e.g. unclear authenticity).
-- questions: ask the seller only what you cannot determine from photos/notes.
+- questions: always return an empty array []. Missing size, brand, or condition is collected earlier in the agent flow — do not ask the seller in this step.
 - Output valid JSON only, matching the schema exactly.`;
 
 export function buildOpenAIUserPrompt(input: ListingGenerationInput, hasImages: boolean): string {
@@ -73,7 +73,7 @@ export function buildOpenAIUserPrompt(input: ListingGenerationInput, hasImages: 
     `  "shippingAssumptions": "string",`,
     `  "confidenceScore": number between 0 and 1,`,
     `  "warnings": ["string"],`,
-    `  "questions": ["string"]`,
+    `  "questions": []`,
     `}`
   );
 

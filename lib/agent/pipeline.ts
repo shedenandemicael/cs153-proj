@@ -6,9 +6,9 @@ import { prisma } from "@/lib/db/prisma";
 import {
   buildMarketSearchQuery,
   enrichNotesFromIdentification,
-  needsVisionIdentification,
 } from "@/lib/agent/market-search";
 import { buildClarifyingQuestions } from "@/lib/agent/clarifying-questions";
+import { filterListingQuestions } from "@/lib/agent/filter-listing-questions";
 import type { AgentStepLog, AutonomousRunResult } from "./types";
 import { determinePrice } from "@/lib/pricing";
 import { applyPriceToListing } from "@/lib/pricing/apply-to-listing";
@@ -93,7 +93,7 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     let enrichedNotes = notes;
     let identification = null;
 
-    if (needsVisionIdentification(notes, imagePaths)) {
+    if (imagePaths.length > 0) {
       step(steps, "identify_item", "running", "Analyzing photos to identify product…");
       identification = await identifyItemFromImages(imagePaths, notes);
       if (identification) {
@@ -117,7 +117,12 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     }
 
     const searchQuery = buildMarketSearchQuery(enrichedNotes, identification);
-    const clarifyingQuestions = buildClarifyingQuestions(enrichedNotes, identification, searchQuery);
+    const clarifyingQuestions = buildClarifyingQuestions(
+      enrichedNotes,
+      identification,
+      searchQuery,
+      { hasImages: imagePaths.length > 0 }
+    );
 
     if (clarifyingQuestions.length > 0) {
       step(
@@ -231,7 +236,7 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     step(steps, "generate_listing", "completed", `Draft title: ${generated.title.slice(0, 60)}…`);
 
     const warnings = generated.warnings;
-    const questions = generated.questions;
+    const questions = filterListingQuestions(generated.questions, enrichedNotes);
     const confidence = generated.confidenceScore;
 
     const draftPayload = {

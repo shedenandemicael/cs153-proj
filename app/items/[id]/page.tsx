@@ -9,6 +9,7 @@ import { AgentActions } from "@/components/items/AgentActions";
 import { ItemAgentShell } from "@/components/items/ItemAgentShell";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
+import { filterListingQuestions } from "@/lib/agent/filter-listing-questions";
 import type { AgentStepLog, AgentQuestion } from "@/lib/agent/types";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,11 @@ export default async function ItemAgentPage({
 
   const draft = item.listingDraft;
   const legacyReady = item.status === "GENERATED" || item.status === "REVIEWED";
+  const sellerNotes = {
+    brand: item.notesBrand ?? undefined,
+    size: item.notesSize ?? undefined,
+    condition: item.notesCondition ?? undefined,
+  };
 
   return (
     <div className="space-y-6">
@@ -139,7 +145,7 @@ export default async function ItemAgentPage({
                 shippingAssumptions: draft.shippingAssumptions ?? undefined,
                 confidenceScore: draft.confidenceScore,
                 warnings: parseJsonArray(draft.warnings),
-                questions: parseJsonArray(draft.questions),
+                questions: filterListingQuestions(parseJsonArray(draft.questions), sellerNotes),
                 pricingRationale: draft.pricingRationale,
                 pricingMethod: draft.pricingMethod,
                 draftStatus: draft.status,

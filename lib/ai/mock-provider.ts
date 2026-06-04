@@ -39,7 +39,6 @@ export class MockLLMProvider implements LLMProvider {
 
     if (!notes.brand) {
       warnings.push("Brand was not provided — title may need manual verification.");
-      questions.push("Can you confirm the brand from tags or labels?");
     }
     if (!notes.condition) {
       warnings.push("Condition was inferred; please verify against photos.");
