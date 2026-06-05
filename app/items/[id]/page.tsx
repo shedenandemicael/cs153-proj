@@ -94,7 +94,7 @@ export default async function ItemAgentPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <Link
-            href="/"
+            href="/dashboard"
             className="text-sm text-[var(--muted)] hover:text-[var(--spot)] hover:underline"
           >
             ← Listings
