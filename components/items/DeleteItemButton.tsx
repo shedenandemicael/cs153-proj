@@ -1,25 +1,40 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 
 interface DeleteItemButtonProps {
   itemId: string;
   itemLabel?: string;
+  /** Where to go after delete. Omit to stay on the current page (or /dashboard from an item page). */
   redirectTo?: string;
   className?: string;
   variant?: "button" | "link";
 }
 
+function resolveRedirectAfterDelete(pathname: string, redirectTo?: string): string | null {
+  if (redirectTo !== undefined) return redirectTo;
+
+  const isItemDetailPage =
+    /^\/items\/[^/]+$/.test(pathname) &&
+    pathname !== "/items/new" &&
+    pathname !== "/items/batch";
+
+  if (isItemDetailPage) return "/dashboard";
+
+  return null;
+}
+
 export function DeleteItemButton({
   itemId,
   itemLabel = "this item",
-  redirectTo = "/",
+  redirectTo,
   className = "",
   variant = "button",
 }: DeleteItemButtonProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [loading, setLoading] = useState(false);
 
   async function handleDelete() {
@@ -31,7 +46,9 @@ export function DeleteItemButton({
       const res = await fetch(`/api/items/${itemId}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
-      router.push(redirectTo);
+
+      const target = resolveRedirectAfterDelete(pathname, redirectTo);
+      if (target) router.push(target);
       router.refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete item");
