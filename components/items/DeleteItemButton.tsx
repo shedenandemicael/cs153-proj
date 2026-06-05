@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/Button";
 interface DeleteItemButtonProps {
   itemId: string;
   itemLabel?: string;
+  /** When true, confirm mentions ending the live eBay listing. */
+  publishedOnEbay?: boolean;
   /** Where to go after delete. Omit to stay on the current page (or /dashboard from an item page). */
   redirectTo?: string;
   className?: string;
@@ -29,6 +31,7 @@ function resolveRedirectAfterDelete(pathname: string, redirectTo?: string): stri
 export function DeleteItemButton({
   itemId,
   itemLabel = "this item",
+  publishedOnEbay = false,
   redirectTo,
   className = "",
   variant = "button",
@@ -38,7 +41,10 @@ export function DeleteItemButton({
   const [loading, setLoading] = useState(false);
 
   async function handleDelete() {
-    const message = `Delete "${itemLabel}"? This removes the listing draft, photos, and evaluation data. This cannot be undone.`;
+    const ebayNote = publishedOnEbay
+      ? " The live eBay sandbox listing will also be ended."
+      : "";
+    const message = `Delete "${itemLabel}"? This removes the listing draft, photos, and evaluation data.${ebayNote} This cannot be undone.`;
     if (!confirm(message)) return;
 
     setLoading(true);
@@ -46,6 +52,10 @@ export function DeleteItemButton({
       const res = await fetch(`/api/items/${itemId}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Failed to delete");
+
+      if (typeof data.warning === "string" && data.warning) {
+        alert(data.warning);
+      }
 
       const target = resolveRedirectAfterDelete(pathname, redirectTo);
       if (target) router.push(target);

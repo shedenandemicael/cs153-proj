@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { Card } from "@/components/ui/Card";
 import { AgentActions } from "@/components/items/AgentActions";
+import { wasPublishedOnEbay } from "@/lib/ebay/sell/end-listing";
 
 export const dynamic = "force-dynamic";
 
@@ -36,7 +37,11 @@ export default async function EvaluatePage({
             Autonomous run — no human edits recorded.
           </p>
         </div>
-        <AgentActions itemId={id} itemLabel={item.listingDraft?.title ?? "this item"} />
+        <AgentActions
+          itemId={id}
+          itemLabel={item.listingDraft?.title ?? "this item"}
+          publishedOnEbay={wasPublishedOnEbay(item)}
+        />
       </div>
 
       <Card>

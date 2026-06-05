@@ -45,8 +45,17 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await deleteItem(id);
-    return NextResponse.json({ ok: true });
+    const result = await deleteItem(id);
+    return NextResponse.json({
+      ok: true,
+      ebayEnded: result.ebayEnded,
+      message: result.ebayEnded
+        ? "Item deleted and eBay listing ended."
+        : result.ebayWarning
+          ? `Item deleted. ${result.ebayWarning}`
+          : "Item deleted.",
+      warning: result.ebayWarning,
+    });
   } catch (error) {
     const status = error instanceof AppError ? error.statusCode : 500;
     return NextResponse.json({ error: getErrorMessage(error) }, { status });

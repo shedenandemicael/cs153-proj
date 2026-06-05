@@ -118,6 +118,7 @@ export function ItemTable({
                     <DeleteItemButton
                       itemId={item.id}
                       itemLabel={item.title ?? "Untitled"}
+                      publishedOnEbay={Boolean(item.ebayListingUrl)}
                       variant="link"
                     />
                   </div>

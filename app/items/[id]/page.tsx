@@ -14,6 +14,7 @@ import { Suspense } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { filterListingQuestions } from "@/lib/agent/filter-listing-questions";
+import { wasPublishedOnEbay } from "@/lib/ebay/sell/end-listing";
 import type { AgentStepLog, AgentQuestion } from "@/lib/agent/types";
 
 export const dynamic = "force-dynamic";
@@ -108,7 +109,11 @@ export default async function ItemAgentPage({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {listingUrl ? <ViewOnEbayLink url={listingUrl} /> : null}
-          <AgentActions itemId={id} itemLabel={draft?.title ?? "this item"} />
+          <AgentActions
+            itemId={id}
+            itemLabel={draft?.title ?? "this item"}
+            publishedOnEbay={wasPublishedOnEbay(item)}
+          />
         </div>
       </div>
 

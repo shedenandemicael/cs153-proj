@@ -8,9 +8,11 @@ import { DeleteItemButton } from "@/components/items/DeleteItemButton";
 export function AgentActions({
   itemId,
   itemLabel,
+  publishedOnEbay = false,
 }: {
   itemId: string;
   itemLabel: string;
+  publishedOnEbay?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,12 @@ export function AgentActions({
       <Button variant="secondary" loading={loading} onClick={rerun}>
         Re-run agent
       </Button>
-      <DeleteItemButton itemId={itemId} itemLabel={itemLabel} variant="button" />
+      <DeleteItemButton
+        itemId={itemId}
+        itemLabel={itemLabel}
+        publishedOnEbay={publishedOnEbay}
+        variant="button"
+      />
     </div>
   );
 }

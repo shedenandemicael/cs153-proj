@@ -59,7 +59,7 @@ function buildOfferBody(params: OfferPublishParams) {
   };
 }
 
-async function findExistingFixedPriceOffer(sku: string): Promise<{
+export async function getFixedPriceOfferForSku(sku: string): Promise<{
   offerId: string;
   status?: string;
   listingId?: string;
@@ -132,7 +132,7 @@ export async function createAndPublishOffer(
 
   const body = buildOfferBody(params);
 
-  let existing = await findExistingFixedPriceOffer(params.sku);
+  let existing = await getFixedPriceOfferForSku(params.sku);
 
   if (existing?.status === "PUBLISHED" && existing.listingId) {
     return { offerId: existing.offerId, listingId: existing.listingId };
@@ -147,7 +147,7 @@ export async function createAndPublishOffer(
       offerId = await createOffer(body);
     } catch (error) {
       if (!isOfferAlreadyExistsError(error)) throw error;
-      existing = await findExistingFixedPriceOffer(params.sku);
+      existing = await getFixedPriceOfferForSku(params.sku);
       if (!existing?.offerId) throw error;
       offerId = existing.offerId;
       if (existing.status === "PUBLISHED" && existing.listingId) {

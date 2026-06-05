@@ -5,6 +5,7 @@ import { ensureDefaultInventoryLocation } from "./location";
 import { getListingPolicyIds } from "./policies";
 import { getBusinessPoliciesStatus } from "./setup-policies";
 import { createOrReplaceInventoryItem } from "./inventory-item";
+import { spotItemSku } from "./item-sku";
 import { createAndPublishOffer } from "./offer";
 
 export interface PublishListingResult {
@@ -82,7 +83,7 @@ export async function publishListingToEbay(item: Item & {
     throw new Error("Listing draft must be approved before publishing.");
   }
 
-  const sku = `cs153-${item.id}`;
+  const sku = spotItemSku(item.id);
   const merchantLocationKey = await ensureDefaultInventoryLocation();
   const policies = await getListingPolicyIds();
 
