@@ -49,9 +49,24 @@ export function EbaySellPanel({
     }
   }, [searchParams, itemId, router, loadStatus]);
 
+  useEffect(() => {
+    const onFocus = () => {
+      loadStatus();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadStatus]);
+
   function connect() {
     const returnTo = encodeURIComponent(`/items/${itemId}`);
-    window.location.href = `/api/ebay/auth?returnTo=${returnTo}`;
+    const url = `/api/ebay/auth?returnTo=${returnTo}`;
+    const tab = window.open(url, "_blank", "noopener,noreferrer");
+    if (!tab) {
+      setError("Popup blocked — allow popups for this site or try again.");
+      return;
+    }
+    setError(null);
+    setMessage("Complete sign-in in the new tab, then return to this page.");
   }
 
   async function disconnect() {
@@ -119,7 +134,7 @@ export function EbaySellPanel({
             Disconnect
           </Button>
         ) : (
-          <Button variant="secondary" onClick={connect}>
+          <Button variant="secondary" onClick={connect} title="Opens eBay sign-in in a new tab">
             Connect eBay Sandbox
           </Button>
         )}
