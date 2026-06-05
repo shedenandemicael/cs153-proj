@@ -18,7 +18,6 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
   const session = await getSession();
   const params = (await searchParams) ?? {};
   const next = params.next && params.next.startsWith("/") && !params.next.startsWith("//") ? params.next : "/dashboard";
-  const loginHref = `/api/auth/google?next=${encodeURIComponent(next)}`;
 
   return (
     <div className="overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--card)] shadow-sm">
@@ -40,35 +39,64 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
             </div>
           ) : null}
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            {session ? (
+          {session ? (
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/dashboard"
                 className="inline-flex items-center justify-center rounded-lg bg-[var(--spot)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--spot-dark)]"
               >
                 Go to dashboard
               </Link>
-            ) : (
-              <Link
-                href={loginHref}
-                className="inline-flex items-center justify-center gap-3 rounded-lg bg-[var(--spot)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--spot-dark)]"
+              <a
+                href="#features"
+                className="inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-white px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--spot-light)]"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs font-bold text-[var(--spot-dark)]">
-                  G
-                </span>
-                Continue with Google
-              </Link>
-            )}
-            <a
-              href="#features"
-              className="inline-flex items-center justify-center rounded-lg border border-[var(--border)] bg-white px-5 py-3 text-sm font-semibold text-[var(--foreground)] transition hover:bg-[var(--spot-light)]"
-            >
-              See how it works
-            </a>
-          </div>
-          <p className="mt-4 text-sm text-[var(--muted)]">
-            Access is currently limited to <span className="font-semibold text-[var(--foreground)]">shedenandemicael@gmail.com</span>.
-          </p>
+                See how it works
+              </a>
+            </div>
+          ) : (
+            <form action="/api/auth/login" method="post" className="mt-8 max-w-md rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
+              <input type="hidden" name="next" value={next} />
+              <div className="space-y-4">
+                <div>
+                  <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[var(--foreground)]">
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    placeholder="shedenandemicael@gmail.com"
+                    className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm outline-none transition focus:border-[var(--spot)] focus:ring-2 focus:ring-[var(--spot-light)]"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="password" className="mb-2 block text-sm font-semibold text-[var(--foreground)]">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    className="w-full rounded-lg border border-[var(--border)] px-3 py-2 text-sm outline-none transition focus:border-[var(--spot)] focus:ring-2 focus:ring-[var(--spot-light)]"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-[var(--spot)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--spot-dark)]"
+              >
+                Log in
+              </button>
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                Access is currently limited to <span className="font-semibold text-[var(--foreground)]">shedenandemicael@gmail.com</span>.
+              </p>
+            </form>
+          )}
         </div>
 
         <div className="relative min-h-[360px] rounded-[1.5rem] bg-[var(--spot-light)] p-5">

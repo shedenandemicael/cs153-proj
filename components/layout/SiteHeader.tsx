@@ -43,7 +43,7 @@ export async function SiteHeader() {
           </div>
         ) : (
           <Link
-            href="/api/auth/google"
+            href="/?next=/dashboard"
             className="rounded-lg bg-[var(--spot)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--spot-dark)]"
           >
             Log in

@@ -2,6 +2,7 @@ export const AUTH_COOKIE_NAME = "spot_session";
 export const ALLOWED_EMAIL = "shedenandemicael@gmail.com";
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
+const DEFAULT_AUTH_SECRET = "spot-private-beta-session-secret";
 const encoder = new TextEncoder();
 
 type SessionPayload = {
@@ -42,19 +43,17 @@ function base64UrlDecode(input: string) {
 }
 
 function getAuthSecret() {
-  const secret = process.env.AUTH_SECRET;
+  const secret = process.env.AUTH_SECRET?.trim();
 
-  if (!secret) {
-    throw new Error("AUTH_SECRET must be set to use Spot authentication.");
-  }
-
-  return secret;
+  return secret && secret.length > 0 ? secret : DEFAULT_AUTH_SECRET;
 }
 
 async function getSigningKey() {
+  const secret = getAuthSecret();
+
   return crypto.subtle.importKey(
     "raw",
-    encoder.encode(getAuthSecret()),
+    encoder.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign", "verify"],
@@ -98,7 +97,13 @@ export async function verifySessionToken(token?: string): Promise<AuthSession | 
     return null;
   }
 
-  const payload = JSON.parse(base64UrlDecode(encodedPayload)) as SessionPayload;
+  let payload: SessionPayload;
+
+  try {
+    payload = JSON.parse(base64UrlDecode(encodedPayload)) as SessionPayload;
+  } catch {
+    return null;
+  }
 
   if (payload.exp < Math.floor(Date.now() / 1000)) {
     return null;

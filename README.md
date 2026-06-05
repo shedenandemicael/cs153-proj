@@ -38,7 +38,7 @@ Optional human actions: **answer clarifying questions**, **re-run agent**, **del
 
 ```bash
 cp .env.example .env
-# Set DATABASE_URL, DATABASE_URL_UNPOOLED, and auth secrets (see Authentication)
+# Set DATABASE_URL, DATABASE_URL_UNPOOLED, and optional AUTH_SECRET (see Authentication)
 npm install
 npm run db:deploy
 npm run dev
@@ -54,27 +54,19 @@ Optional seed data: `npm run db:seed`
 | Batch (closet mode) | [http://localhost:3000/items/batch](http://localhost:3000/items/batch) — up to 30 photos → AI clustering → up to 10 listings, processed sequentially in the background |
 | Agent metrics | `/items/[id]/evaluate` |
 
-`/dashboard`, `/items/*`, `/api/items/*`, and `/api/ebay/*` require Google sign-in (see Authentication). The landing page is public.
+`/dashboard`, `/items/*`, `/api/items/*`, and `/api/ebay/*` require sign-in (see Authentication). The landing page is public.
 
 `POST /api/items` creates an item and runs the full agent **synchronously** in one request. Batch uploads queue background processing via `after()` and poll progress at `GET /api/items/batch/[id]`.
 
 ## Authentication
 
-Spot uses Google OAuth for the dashboard and item workflows. Only `shedenandemicael@gmail.com` is authorized (`lib/auth/token.ts`).
+Spot uses a simple private-beta login form for the dashboard and item workflows. For now, the only authorized account is `shedenandemicael@gmail.com` with password `password`.
+
+Sessions are stored in a signed HTTP-only cookie. The app has a built-in private-beta signing fallback, but production deployments can optionally set `AUTH_SECRET` to rotate the session-signing secret:
 
 ```bash
 AUTH_SECRET=your-random-session-signing-secret
-GOOGLE_CLIENT_ID=your-google-oauth-client-id
-GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 ```
-
-Add this authorized redirect URI in Google Cloud Console:
-
-```text
-http://localhost:3000/api/auth/google/callback
-```
-
-Add the matching production callback URL after deployment.
 
 ## Agent configuration (`.env`)
 
@@ -154,7 +146,7 @@ The webhook purges `EbayAccountRecord` rows when eBay sends a deletion event. Th
 
 1. Connect Neon in Vercel Storage with prefix **`DATABASE`** (creates `DATABASE_URL` + `DATABASE_URL_UNPOOLED`).
 2. Add secrets in Vercel → Settings → Environment Variables (Production + Preview):
-   - `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+   - `AUTH_SECRET` (recommended in production)
    - `OPENAI_API_KEY`, `EBAY_*`, `NEXT_PUBLIC_APP_URL`, `EBAY_NOTIFICATION_*`, agent settings (see `.env.example`)
 3. Push to GitHub — Vercel runs `vercel-build` → `prisma migrate deploy` then `next build`.
 4. Set `NEXT_PUBLIC_APP_URL` and `EBAY_NOTIFICATION_ENDPOINT_URL` to your `https://….vercel.app` URL, then redeploy.
@@ -197,7 +189,7 @@ lib/pricing/        Price determination (OpenAI vision or stats)
 lib/ebay/fetch/     eBay read APIs (Browse, Insights, Taxonomy)
 lib/ebay/sell/      eBay Sell API (inventory, offers, publish)
 lib/services/       Item intake, batch, upload
-middleware.ts       Google session gate for protected routes
+middleware.ts       Session gate for protected routes
 prisma/             Schema + migrations (Postgres)
 ```
 
