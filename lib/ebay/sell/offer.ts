@@ -1,4 +1,5 @@
 import type { ListingDraft } from "@prisma/client";
+import { EbayApiError } from "@/lib/ebay/fetch/errors";
 import { parseJsonArray } from "@/lib/utils/json";
 import { EBAY_MARKETPLACE_ID } from "../fetch/http";
 import { ebaySellFetch } from "./http";
@@ -91,11 +92,23 @@ function isOfferAlreadyExistsError(error: unknown): boolean {
   );
 }
 
-async function updateOffer(offerId: string, body: ReturnType<typeof buildOfferBody>): Promise<void> {
-  await ebaySellFetch(`/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, {
-    method: "PUT",
-    body,
-  });
+/** eBay 25713 — offer ended, deleted, or otherwise unusable (common in sandbox after relist cycles). */
+function isOfferUnavailableError(error: unknown): boolean {
+  if (error instanceof EbayApiError) return error.errorId === 25713;
+  return error instanceof Error && /25713|offer is not available/i.test(error.message);
+}
+
+async function deleteOfferById(offerId: string): Promise<void> {
+  try {
+    await ebaySellFetch(`/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    if (error instanceof EbayApiError && (error.status === 404 || error.errorId === 25713)) {
+      return;
+    }
+    throw error;
+  }
 }
 
 async function publishOfferById(offerId: string): Promise<PublishOfferResponse> {
@@ -118,8 +131,26 @@ async function createOffer(body: ReturnType<typeof buildOfferBody>): Promise<str
   return created.offerId;
 }
 
+async function createAndPublishFreshOffer(
+  body: ReturnType<typeof buildOfferBody>
+): Promise<{ offerId: string; listingId?: string }> {
+  let offerId = await createOffer(body);
+
+  try {
+    const published = await publishOfferById(offerId);
+    return { offerId, listingId: published.listingId };
+  } catch (error) {
+    if (!isOfferUnavailableError(error)) throw error;
+    await deleteOfferById(offerId);
+    offerId = await createOffer(body);
+    const published = await publishOfferById(offerId);
+    return { offerId, listingId: published.listingId };
+  }
+}
+
 /**
  * Create or reuse a fixed-price offer for the SKU, then publish (idempotent retries).
+ * Stale/ended sandbox offers (25713) are deleted and recreated automatically.
  */
 export async function createAndPublishOffer(
   params: OfferPublishParams
@@ -131,36 +162,32 @@ export async function createAndPublishOffer(
   }
 
   const body = buildOfferBody(params);
-
-  let existing = await getFixedPriceOfferForSku(params.sku);
+  const existing = await getFixedPriceOfferForSku(params.sku);
 
   if (existing?.status === "PUBLISHED" && existing.listingId) {
     return { offerId: existing.offerId, listingId: existing.listingId };
   }
 
-  let offerId = existing?.offerId;
-
-  if (offerId) {
-    await updateOffer(offerId, body);
-  } else {
-    try {
-      offerId = await createOffer(body);
-    } catch (error) {
-      if (!isOfferAlreadyExistsError(error)) throw error;
-      existing = await getFixedPriceOfferForSku(params.sku);
-      if (!existing?.offerId) throw error;
-      offerId = existing.offerId;
-      if (existing.status === "PUBLISHED" && existing.listingId) {
-        return { offerId, listingId: existing.listingId };
-      }
-      await updateOffer(offerId, body);
-    }
+  // Remove unpublished/ended ghost offers so publish does not hit 25713 after delete-relist cycles.
+  if (existing?.offerId) {
+    await deleteOfferById(existing.offerId);
   }
 
-  const published = await publishOfferById(offerId);
+  try {
+    return await createAndPublishFreshOffer(body);
+  } catch (error) {
+    if (!isOfferAlreadyExistsError(error) && !isOfferUnavailableError(error)) {
+      throw error;
+    }
 
-  return {
-    offerId,
-    listingId: published.listingId,
-  };
+    const again = await getFixedPriceOfferForSku(params.sku);
+    if (again?.status === "PUBLISHED" && again.listingId) {
+      return { offerId: again.offerId, listingId: again.listingId };
+    }
+    if (again?.offerId) {
+      await deleteOfferById(again.offerId);
+    }
+
+    return createAndPublishFreshOffer(body);
+  }
 }
