@@ -26,7 +26,7 @@ flowchart LR
 | Human review / approve | **No** (policy only) |
 | Publish | Optional (`AGENT_AUTO_PUBLISH=true`) |
 
-Human actions are optional: **re-run agent**, **delete**, **copy listing**.
+Human actions are optional: **re-run agent**, **delete**, **copy listing**, **connect eBay sandbox**, **publish to eBay**.
 
 ## Quick start
 
@@ -53,7 +53,19 @@ AGENT_BLOCKING_WARNINGS=authenticity,recall,counterfeit
 
 - Below confidence threshold → item `FAILED`, draft rejected.
 - Warnings matching blocking patterns → `FAILED` (safety).
-- `AGENT_AUTO_PUBLISH=true` + eBay sandbox creds → publish when confidence ≥ publish threshold.
+- `AGENT_AUTO_PUBLISH=true` + sandbox creds + **connected seller OAuth** → publish when confidence ≥ publish threshold.
+
+### Sandbox publish (Sell API)
+
+1. Set `EBAY_ENV=sandbox` and sandbox keys in `EBAY_SANDBOX_CLIENT_ID` / `EBAY_SANDBOX_CLIENT_SECRET` (keep production keys in `EBAY_PRODUCTION_*` or `EBAY_CLIENT_ID` for comps).
+2. In [eBay Developer Portal](https://developer.ebay.com/my/keys) → User Tokens, add a **RuName** whose auth accept URL is `https://YOUR-DOMAIN/api/ebay/callback`. Set `EBAY_REDIRECT_URI` to that **RuName** string (not the full URL).
+3. On an item page, click **Connect eBay Sandbox** and sign in with a [sandbox test user](https://developer.ebay.com/tools/sandbox-user).
+4. In **Sandbox Seller Hub**, create payment, return, and shipping (fulfillment) business policies for US.
+5. Click **Publish to eBay** on an item with status `READY` and an approved draft.
+
+```bash
+curl http://localhost:3000/api/ebay/sell/status
+```
 
 ## LLM & eBay
 

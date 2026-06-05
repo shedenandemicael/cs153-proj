@@ -25,7 +25,7 @@ export async function checkEbayResearchHealth(): Promise<EbayHealthCheck> {
       configured: false,
       researchEnv: config.researchEnv,
       tokenOk: false,
-      tokenError: "EBAY_CLIENT_ID and EBAY_CLIENT_SECRET not set",
+      tokenError: "Production eBay credentials not set (EBAY_PRODUCTION_* or EBAY_CLIENT_ID)",
       browseOk: false,
       browseItemCount: 0,
       taxonomyOk: false,

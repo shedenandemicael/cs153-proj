@@ -7,6 +7,8 @@ import { ListingResult } from "@/components/items/ListingResult";
 import { ComparableList } from "@/components/items/ComparableList";
 import { AgentActions } from "@/components/items/AgentActions";
 import { ItemAgentShell } from "@/components/items/ItemAgentShell";
+import { EbaySellPanel } from "@/components/ebay/EbaySellPanel";
+import { Suspense } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { filterListingQuestions } from "@/lib/agent/filter-listing-questions";
@@ -118,6 +120,13 @@ export default async function ItemAgentPage({
             runStatus={latestRun?.status}
             error={latestRun?.error}
           />
+          <Suspense fallback={null}>
+            <EbaySellPanel
+              itemId={id}
+              itemStatus={item.status}
+              draftStatus={draft?.status}
+            />
+          </Suspense>
           <ComparableList
             comparables={item.comparables.map((c) => ({
               id: c.id,

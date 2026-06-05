@@ -1,7 +1,8 @@
 import { getLLMProvider } from "@/lib/ai";
 import { identifyItemFromImages } from "@/lib/ai/identify-item";
 import { getEbayResearchClient } from "@/lib/ebay";
-import { createInventoryItemStub, createOfferDraftStub } from "@/lib/ebay/sell-stubs";
+import { publishListingToEbay } from "@/lib/ebay/sell/publish-listing";
+import { isEbaySellerConnected } from "@/lib/ebay/oauth/user-token";
 import { prisma } from "@/lib/db/prisma";
 import {
   buildMarketSearchQuery,
@@ -330,31 +331,53 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     let published = false;
     let offerId: string | undefined;
 
+    const sellerConnected = await isEbaySellerConnected();
     const canPublish =
       config.autoPublish &&
       canPublishToEbay() &&
+      sellerConnected &&
       confidence >= config.publishConfidenceThreshold;
 
     if (canPublish) {
       step(steps, "auto_publish", "running", "Publishing to eBay sandbox…");
-      const sku = `item-${itemId}`;
-      await createInventoryItemStub(sku);
-      const offer = await createOfferDraftStub(sku);
-      offerId = offer.offerId;
+      const publishItem = await prisma.item.findUnique({
+        where: { id: itemId },
+        include: {
+          listingDraft: true,
+          images: { orderBy: { sortOrder: "asc" } },
+        },
+      });
+      const publishDraft = publishItem?.listingDraft;
+      if (!publishItem || !publishDraft) {
+        throw new AppError("Listing draft missing for publish", 500);
+      }
+      const result = await publishListingToEbay({
+        ...publishItem,
+        listingDraft: publishDraft,
+      });
+      offerId = result.offerId;
       await prisma.listingDraft.update({
         where: { itemId },
-        data: { ebayOfferId: offer.offerId, publishedAt: new Date() },
+        data: { ebayOfferId: result.offerId, publishedAt: new Date() },
       });
       await prisma.item.update({ where: { id: itemId }, data: { status: "PUBLISHED" } });
       published = true;
-      step(steps, "auto_publish", "completed", `Published (sandbox offer ${offer.offerId}).`);
+      const listingNote = result.listingUrl ? ` ${result.listingUrl}` : "";
+      step(
+        steps,
+        "auto_publish",
+        "completed",
+        `Published to eBay sandbox (offer ${result.offerId}${result.listingId ? `, listing ${result.listingId}` : ""}).${listingNote}`
+      );
     } else {
       await prisma.item.update({ where: { id: itemId }, data: { status: "READY" } });
       const skipReason = !config.autoPublish
         ? "Auto-publish disabled (set AGENT_AUTO_PUBLISH=true)."
         : !canPublishToEbay()
-          ? "eBay credentials not configured for publish."
-          : `Confidence below publish threshold (${(config.publishConfidenceThreshold * 100).toFixed(0)}%).`;
+          ? "Sandbox publish requires EBAY_ENV=sandbox and API keys."
+          : !sellerConnected
+            ? "eBay sandbox seller not connected."
+            : `Confidence below publish threshold (${(config.publishConfidenceThreshold * 100).toFixed(0)}%).`;
       step(steps, "auto_publish", "skipped", skipReason);
     }
 
