@@ -1,5 +1,8 @@
 import { EBAY_MARKETPLACE_ID } from "../fetch/http";
 import { ebaySellFetch } from "./http";
+import { optInToBusinessPolicies, setupBusinessPolicies } from "./setup-policies";
+
+export { optInToBusinessPolicies } from "./setup-policies";
 
 interface PolicyListResponse {
   fulfillmentPolicies?: Array<{ fulfillmentPolicyId?: string; name?: string }>;
@@ -13,21 +16,10 @@ export interface ListingPolicyIds {
   returnPolicyId: string;
 }
 
-export async function optInToBusinessPolicies(): Promise<void> {
-  try {
-    await ebaySellFetch("/sell/account/v1/program/opt_in", {
-      method: "POST",
-      body: { programType: "SELLING_POLICY_MANAGEMENT" },
-    });
-  } catch {
-    // Already opted in
-  }
-}
-
 export async function getListingPolicyIds(): Promise<ListingPolicyIds> {
   await optInToBusinessPolicies();
 
-  const [fulfillment, payment, returns] = await Promise.all([
+  let [fulfillment, payment, returns] = await Promise.all([
     ebaySellFetch<PolicyListResponse>("/sell/account/v1/fulfillment_policy", {
       query: { marketplace_id: EBAY_MARKETPLACE_ID },
     }),
@@ -44,9 +36,8 @@ export async function getListingPolicyIds(): Promise<ListingPolicyIds> {
   const returnPolicyId = returns.returnPolicies?.[0]?.returnPolicyId;
 
   if (!fulfillmentPolicyId || !paymentPolicyId || !returnPolicyId) {
-    throw new Error(
-      "Sandbox seller is missing business policies. In eBay Sandbox Seller Hub, create payment, return, and shipping (fulfillment) policies for EBAY_US, then try again."
-    );
+    const setup = await setupBusinessPolicies();
+    return setup.policies;
   }
 
   return { fulfillmentPolicyId, paymentPolicyId, returnPolicyId };

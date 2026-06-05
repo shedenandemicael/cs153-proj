@@ -11,6 +11,8 @@ interface SellStatus {
   connected: boolean;
   environment: string;
   username?: string | null;
+  policiesReady?: boolean;
+  policyCounts?: { payment: number; return: number; fulfillment: number };
   hint?: string;
 }
 
@@ -28,6 +30,7 @@ export function EbaySellPanel({
   const [status, setStatus] = useState<SellStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [publishLoading, setPublishLoading] = useState(false);
+  const [setupLoading, setSetupLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -83,6 +86,23 @@ export function EbaySellPanel({
     }
   }
 
+  async function setupPolicies() {
+    setSetupLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/ebay/sell/setup-policies", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Policy setup failed");
+      setMessage(data.message ?? "Sandbox business policies are ready.");
+      await loadStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Policy setup failed");
+    } finally {
+      setSetupLoading(false);
+    }
+  }
+
   async function publish() {
     if (
       !confirm(
@@ -116,19 +136,30 @@ export function EbaySellPanel({
     <Card>
       <h3 className="text-sm font-semibold text-slate-900">eBay sandbox publish</h3>
       <p className="mt-1 text-sm text-slate-600">
-        Connect a sandbox seller account, then publish the approved draft to eBay (Inventory + Offer
-        APIs).
+        Connect a sandbox seller account. Business policies (payment, return, shipping) are created
+        automatically via the eBay API — no Seller Hub required.
       </p>
 
       {status && (
         <p className="mt-2 text-sm text-slate-700">
           {status.connected
-            ? `Connected${status.username ? ` as ${status.username}` : ""} (${status.environment})`
+            ? `Connected${status.username ? ` as ${status.username}` : ""} (${status.environment})${
+                status.policiesReady
+                  ? " — business policies ready"
+                  : status.policyCounts
+                    ? ` — policies: payment ${status.policyCounts.payment}, return ${status.policyCounts.return}, shipping ${status.policyCounts.fulfillment}`
+                    : ""
+              }`
             : `Not connected — ${status.hint ?? "connect below"}`}
         </p>
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
+        {status?.connected && !status.policiesReady ? (
+          <Button variant="secondary" loading={setupLoading} onClick={setupPolicies}>
+            Set up sandbox policies
+          </Button>
+        ) : null}
         {status?.connected ? (
           <Button variant="secondary" loading={loading} onClick={disconnect}>
             Disconnect

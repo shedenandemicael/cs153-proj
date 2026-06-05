@@ -3,6 +3,7 @@ import { getEbaySellConfig, canPublishToEbay } from "@/lib/utils/ebay-config";
 import { isEbaySellerConnected } from "../oauth/user-token";
 import { ensureDefaultInventoryLocation } from "./location";
 import { getListingPolicyIds } from "./policies";
+import { getBusinessPoliciesStatus } from "./setup-policies";
 import { createOrReplaceInventoryItem } from "./inventory-item";
 import { createAndPublishOffer } from "./offer";
 
@@ -18,6 +19,12 @@ export interface EbaySellStatus {
   connected: boolean;
   environment: string;
   username?: string | null;
+  policiesReady?: boolean;
+  policyCounts?: {
+    payment: number;
+    return: number;
+    fulfillment: number;
+  };
   hint?: string;
 }
 
@@ -37,11 +44,21 @@ export async function getEbaySellStatus(): Promise<EbaySellStatus> {
     hint = "Connect your eBay sandbox seller account.";
   }
 
+  const policyStatus = connected ? await getBusinessPoliciesStatus() : null;
+
   return {
     publishEnabled: canPublishToEbay() && connected,
     connected,
     environment: config.env,
     username: account?.username,
+    policiesReady: policyStatus?.ready,
+    policyCounts: policyStatus
+      ? {
+          payment: policyStatus.paymentCount,
+          return: policyStatus.returnCount,
+          fulfillment: policyStatus.fulfillmentCount,
+        }
+      : undefined,
     hint,
   };
 }

@@ -60,8 +60,12 @@ AGENT_BLOCKING_WARNINGS=authenticity,recall,counterfeit
 1. Set `EBAY_ENV=sandbox` and sandbox keys in `EBAY_SANDBOX_CLIENT_ID` / `EBAY_SANDBOX_CLIENT_SECRET` (keep production keys in `EBAY_PRODUCTION_*` or `EBAY_CLIENT_ID` for comps).
 2. In [eBay Developer Portal](https://developer.ebay.com/my/keys) → User Tokens, add a **RuName** whose auth accept URL is `https://YOUR-DOMAIN/api/ebay/callback`. Set `EBAY_REDIRECT_URI` to that **RuName** string (not the full URL).
 3. On an item page, click **Connect eBay Sandbox** and sign in with a [sandbox test user](https://developer.ebay.com/tools/sandbox-user).
-4. In **Sandbox Seller Hub**, create payment, return, and shipping (fulfillment) business policies for US.
+4. On an item page, click **Set up sandbox policies** (or publish — policies are auto-created via Account API). No Seller Hub needed.
 5. Click **Publish to eBay** on an item with status `READY` and an approved draft.
+
+```bash
+curl -X POST http://localhost:3000/api/ebay/sell/setup-policies
+```
 
 ```bash
 curl http://localhost:3000/api/ebay/sell/status
