@@ -6,6 +6,7 @@ import { getListingPolicyIds } from "./policies";
 import { getBusinessPoliciesStatus } from "./setup-policies";
 import { createOrReplaceInventoryItem } from "./inventory-item";
 import { spotItemSku } from "./item-sku";
+import { resetEbaySkuForPublish, safeGetFixedPriceOfferForSku } from "./offer-cleanup";
 import { createAndPublishOffer } from "./offer";
 
 export interface PublishListingResult {
@@ -84,8 +85,25 @@ export async function publishListingToEbay(item: Item & {
   }
 
   const sku = spotItemSku(item.id);
+  const existing = await safeGetFixedPriceOfferForSku(sku);
+  if (existing?.status === "PUBLISHED" && existing.listingId) {
+    const config = getEbaySellConfig();
+    const listingUrl =
+      config.env === "sandbox"
+        ? `https://www.sandbox.ebay.com/itm/${existing.listingId}`
+        : `https://www.ebay.com/itm/${existing.listingId}`;
+    return {
+      offerId: existing.offerId,
+      listingId: existing.listingId,
+      listingUrl,
+      sku,
+    };
+  }
+
   const merchantLocationKey = await ensureDefaultInventoryLocation();
   const policies = await getListingPolicyIds();
+
+  await resetEbaySkuForPublish(sku);
 
   await createOrReplaceInventoryItem({
     sku,

@@ -1,7 +1,12 @@
 import type { ListingDraft } from "@prisma/client";
-import { EbayApiError } from "@/lib/ebay/fetch/errors";
 import { parseJsonArray } from "@/lib/utils/json";
 import { EBAY_MARKETPLACE_ID } from "../fetch/http";
+import {
+  deleteOfferSafe,
+  isOfferUnavailableError,
+  resetEbayOffersForSku,
+  safeGetFixedPriceOfferForSku,
+} from "./offer-cleanup";
 import { ebaySellFetch } from "./http";
 import type { ListingPolicyIds } from "./policies";
 
@@ -13,15 +18,6 @@ interface PublishOfferResponse {
   offerId?: string;
   listingId?: string;
   warnings?: Array<{ message?: string }>;
-}
-
-interface GetOffersResponse {
-  offers?: Array<{
-    offerId?: string;
-    format?: string;
-    status?: string;
-    listing?: { listingId?: string };
-  }>;
 }
 
 export interface OfferPublishParams {
@@ -60,55 +56,15 @@ function buildOfferBody(params: OfferPublishParams) {
   };
 }
 
-export async function getFixedPriceOfferForSku(sku: string): Promise<{
-  offerId: string;
-  status?: string;
-  listingId?: string;
-} | null> {
-  const data = await ebaySellFetch<GetOffersResponse>("/sell/inventory/v1/offer", {
-    query: {
-      sku,
-      marketplace_id: EBAY_MARKETPLACE_ID,
-      format: "FIXED_PRICE",
-      limit: 20,
-    },
-  });
-
-  const offer =
-    data.offers?.find((o) => o.format === "FIXED_PRICE") ?? data.offers?.[0];
-
-  if (!offer?.offerId) return null;
-
-  return {
-    offerId: offer.offerId,
-    status: offer.status,
-    listingId: offer.listing?.listingId,
-  };
+/** @deprecated Use safeGetFixedPriceOfferForSku */
+export async function getFixedPriceOfferForSku(sku: string) {
+  return safeGetFixedPriceOfferForSku(sku);
 }
 
 function isOfferAlreadyExistsError(error: unknown): boolean {
   return (
     error instanceof Error && /offer entity already exists/i.test(error.message)
   );
-}
-
-/** eBay 25713 — offer ended, deleted, or otherwise unusable (common in sandbox after relist cycles). */
-function isOfferUnavailableError(error: unknown): boolean {
-  if (error instanceof EbayApiError) return error.errorId === 25713;
-  return error instanceof Error && /25713|offer is not available/i.test(error.message);
-}
-
-async function deleteOfferById(offerId: string): Promise<void> {
-  try {
-    await ebaySellFetch(`/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, {
-      method: "DELETE",
-    });
-  } catch (error) {
-    if (error instanceof EbayApiError && (error.status === 404 || error.errorId === 25713)) {
-      return;
-    }
-    throw error;
-  }
 }
 
 async function publishOfferById(offerId: string): Promise<PublishOfferResponse> {
@@ -132,6 +88,7 @@ async function createOffer(body: ReturnType<typeof buildOfferBody>): Promise<str
 }
 
 async function createAndPublishFreshOffer(
+  sku: string,
   body: ReturnType<typeof buildOfferBody>
 ): Promise<{ offerId: string; listingId?: string }> {
   let offerId = await createOffer(body);
@@ -141,7 +98,8 @@ async function createAndPublishFreshOffer(
     return { offerId, listingId: published.listingId };
   } catch (error) {
     if (!isOfferUnavailableError(error)) throw error;
-    await deleteOfferById(offerId);
+    await deleteOfferSafe(offerId);
+    await resetEbayOffersForSku(sku);
     offerId = await createOffer(body);
     const published = await publishOfferById(offerId);
     return { offerId, listingId: published.listingId };
@@ -149,8 +107,8 @@ async function createAndPublishFreshOffer(
 }
 
 /**
- * Create or reuse a fixed-price offer for the SKU, then publish (idempotent retries).
- * Stale/ended sandbox offers (25713) are deleted and recreated automatically.
+ * Create a fixed-price offer for the SKU and publish it.
+ * Clears stale sandbox offers/inventory first (fixes eBay error 25713).
  */
 export async function createAndPublishOffer(
   params: OfferPublishParams
@@ -162,32 +120,15 @@ export async function createAndPublishOffer(
   }
 
   const body = buildOfferBody(params);
-  const existing = await getFixedPriceOfferForSku(params.sku);
-
-  if (existing?.status === "PUBLISHED" && existing.listingId) {
-    return { offerId: existing.offerId, listingId: existing.listingId };
-  }
-
-  // Remove unpublished/ended ghost offers so publish does not hit 25713 after delete-relist cycles.
-  if (existing?.offerId) {
-    await deleteOfferById(existing.offerId);
-  }
 
   try {
-    return await createAndPublishFreshOffer(body);
+    return await createAndPublishFreshOffer(params.sku, body);
   } catch (error) {
     if (!isOfferAlreadyExistsError(error) && !isOfferUnavailableError(error)) {
       throw error;
     }
 
-    const again = await getFixedPriceOfferForSku(params.sku);
-    if (again?.status === "PUBLISHED" && again.listingId) {
-      return { offerId: again.offerId, listingId: again.listingId };
-    }
-    if (again?.offerId) {
-      await deleteOfferById(again.offerId);
-    }
-
-    return createAndPublishFreshOffer(body);
+    await resetEbayOffersForSku(params.sku);
+    return createAndPublishFreshOffer(params.sku, body);
   }
 }

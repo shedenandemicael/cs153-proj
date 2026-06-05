@@ -1,9 +1,12 @@
-import { EbayApiError } from "@/lib/ebay/fetch/errors";
 import { canPublishToEbay } from "@/lib/utils/ebay-config";
 import { isEbaySellerConnected } from "../oauth/user-token";
 import { spotItemSku } from "./item-sku";
-import { getFixedPriceOfferForSku } from "./offer";
-import { ebaySellFetch } from "./http";
+import {
+  deleteInventoryItemSafe,
+  deleteOfferSafe,
+  resetEbaySkuForPublish,
+  safeGetFixedPriceOfferForSku,
+} from "./offer-cleanup";
 
 export interface EndEbayListingResult {
   attempted: boolean;
@@ -25,29 +28,8 @@ export function wasPublishedOnEbay(item: {
   return Boolean(draft.ebayOfferId || draft.ebayListingUrl || draft.publishedAt);
 }
 
-function isIgnorableEndError(error: unknown): boolean {
-  if (error instanceof EbayApiError) {
-    if (error.status === 404) return true;
-    return /not found|no offer|already (withdrawn|ended|deleted)/i.test(error.message);
-  }
-  return false;
-}
-
-async function deleteOfferById(offerId: string): Promise<void> {
-  await ebaySellFetch(`/sell/inventory/v1/offer/${encodeURIComponent(offerId)}`, {
-    method: "DELETE",
-  });
-}
-
-async function deleteInventoryItemBySku(sku: string): Promise<void> {
-  await ebaySellFetch(`/sell/inventory/v1/inventory_item/${encodeURIComponent(sku)}`, {
-    method: "DELETE",
-  });
-}
-
 /**
  * End the eBay sandbox listing (if any) before removing the Spot item.
- * Uses deleteOffer — ends live listings and removes the offer object.
  */
 export async function endEbayListingForItem(params: {
   itemId: string;
@@ -71,44 +53,17 @@ export async function endEbayListingForItem(params: {
     };
   }
 
-  let offerId = params.ebayOfferId?.trim() || undefined;
-
-  if (!offerId) {
-    try {
-      const offer = await getFixedPriceOfferForSku(sku);
-      offerId = offer?.offerId;
-    } catch (error) {
-      if (isIgnorableEndError(error)) {
-        return { attempted: true, ended: true };
-      }
-      throw error;
-    }
+  const storedOfferId = params.ebayOfferId?.trim();
+  if (storedOfferId) {
+    await deleteOfferSafe(storedOfferId);
   }
 
-  if (!offerId) {
-    try {
-      await deleteInventoryItemBySku(sku);
-      return { attempted: true, ended: true };
-    } catch (error) {
-      if (isIgnorableEndError(error)) {
-        return { attempted: true, ended: true };
-      }
-      throw error;
-    }
-  }
+  await resetEbaySkuForPublish(sku);
 
-  try {
-    await deleteOfferById(offerId);
-  } catch (error) {
-    if (!isIgnorableEndError(error)) throw error;
-  }
-
-  try {
-    await deleteInventoryItemBySku(sku);
-  } catch (error) {
-    if (!isIgnorableEndError(error)) {
-      console.warn(`[endEbayListingForItem] inventory delete failed for ${sku}:`, error);
-    }
+  const remaining = await safeGetFixedPriceOfferForSku(sku);
+  if (remaining?.status === "PUBLISHED" && remaining.listingId) {
+    await deleteOfferSafe(remaining.offerId);
+    await deleteInventoryItemSafe(sku);
   }
 
   return { attempted: true, ended: true };
