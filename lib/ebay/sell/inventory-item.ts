@@ -1,6 +1,7 @@
 import type { ListingDraft, UploadedImage } from "@prisma/client";
 import { parseJsonArray, parseJsonObject } from "@/lib/utils/json";
 import { mapConditionToEbayEnum } from "./condition";
+import { buildInventoryAspects } from "./build-aspects";
 import { ebaySellFetch } from "./http";
 
 function toPublicImageUrl(path: string): string {
@@ -20,10 +21,14 @@ export async function createOrReplaceInventoryItem(params: {
   const specifics = parseJsonObject<Record<string, string>>(draft.itemSpecifics);
   const description = bullets.length > 0 ? bullets.join("\n") : draft.conditionDesc;
 
-  const aspects: Record<string, string[]> = {};
-  for (const [key, value] of Object.entries(specifics)) {
-    if (value?.trim()) aspects[key] = [value.trim()];
+  if (!draft.categoryId?.trim()) {
+    throw new Error("Listing draft is missing eBay categoryId — re-run the agent or set category manually.");
   }
+
+  const aspects = await buildInventoryAspects({
+    categoryId: draft.categoryId,
+    itemSpecifics: specifics,
+  });
 
   const imageUrls = params.images
     .slice(0, 12)
@@ -42,7 +47,7 @@ export async function createOrReplaceInventoryItem(params: {
         title: draft.title.slice(0, 80),
         description,
         imageUrls,
-        aspects: Object.keys(aspects).length > 0 ? aspects : undefined,
+        aspects,
       },
       availability: {
         shipToLocationAvailability: {

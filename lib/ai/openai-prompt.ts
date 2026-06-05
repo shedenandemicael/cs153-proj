@@ -7,7 +7,7 @@ Rules:
 - Use standard eBay condition terminology (e.g. New with tags, Used - Good, For parts or not working).
 - Title must be 80 characters or fewer, keyword-rich, and honest.
 - descriptionBullets: 4–8 concise bullet points for the listing body (buyer-facing, no markdown).
-- itemSpecifics: key eBay item specifics as string key-value pairs (Brand, Size, Color, Material, etc. when known).
+- itemSpecifics: key eBay item specifics as string key-value pairs (Brand, Size, Color, Material, Department, etc. when known). For apparel categories, always include Department (e.g. Women, Men, Unisex Adults) when inferable from photos or notes.
 - If final prices are provided in the prompt, use those exact values for startingPrice and buyItNowPrice.
 - Otherwise price using comparable sales when provided; respect seller minimum price if given.
 - confidenceScore: 0–1 reflecting how certain you are from photos + notes.
