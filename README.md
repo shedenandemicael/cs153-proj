@@ -60,13 +60,23 @@ Optional seed data: `npm run db:seed`
 
 ## Authentication
 
-Spot uses a simple private-beta login form for the dashboard and item workflows. For now, the only authorized account is `shedenandemicael@gmail.com` with password `password`.
+Spot uses a simple email/password login form on the landing page (`/`). Protected routes are gated by `middleware.ts` via a signed HTTP-only session cookie (`spot_session`).
 
-Sessions are stored in a signed HTTP-only cookie. The app has a built-in private-beta signing fallback, but production deployments can optionally set `AUTH_SECRET` to rotate the session-signing secret:
+**Private-beta credentials (local dev):**
+
+| Email | Password |
+|-------|----------|
+| `shedenandemicael@gmail.com` | `password` |
+
+Only that email is authorized (`lib/auth/token.ts`). Log in at [http://localhost:3000](http://localhost:3000); sign out from the header.
+
+Optional in production — rotate the session-signing secret:
 
 ```bash
 AUTH_SECRET=your-random-session-signing-secret
 ```
+
+Without `AUTH_SECRET`, local dev uses a built-in private-beta fallback.
 
 ## Agent configuration (`.env`)
 
@@ -81,7 +91,7 @@ AGENT_TIME_SAVED_MINUTES=18      # recorded per run in EvaluationMetric
 
 - Below confidence threshold → item `FAILED`, draft `REJECTED`.
 - Warnings matching blocking patterns → `FAILED` (safety).
-- `AGENT_AUTO_PUBLISH=true` + sandbox creds + connected seller OAuth → publish when confidence ≥ publish threshold.
+- `AGENT_AUTO_PUBLISH=true` + sandbox creds + connected eBay seller account → publish when confidence ≥ publish threshold.
 - Otherwise items end at `READY`; use **Publish to eBay** on the item page.
 
 ### Sandbox publish (Sell API)
@@ -159,6 +169,8 @@ The webhook purges `EbayAccountRecord` rows when eBay sends a deletion event. Th
 
 | Route | Description |
 |-------|-------------|
+| `POST /api/auth/login` | Email/password login (form POST → redirect) |
+| `POST /api/auth/logout` | End session |
 | `POST /api/items` | Create item + run full agent (sync) |
 | `GET /api/items` | List items for dashboard |
 | `POST /api/items/[id]/run` | Re-run autonomous agent |
@@ -172,7 +184,7 @@ The webhook purges `EbayAccountRecord` rows when eBay sends a deletion event. Th
 | `GET /api/items/batch/[id]` | Poll batch progress |
 | `GET /api/ebay/status` | eBay config (+ `?health=true`) |
 | `GET /api/ebay/comparables?q=` | Test market fetch |
-| `GET /api/ebay/sell/status` | Seller OAuth + policy status |
+| `GET /api/ebay/sell/status` | eBay seller connection + policy status |
 | `POST /api/ebay/sell/setup-policies` | Create sandbox sell policies |
 | `GET /api/ebay/notifications/account-deletion` | eBay webhook challenge (public) |
 
