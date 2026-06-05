@@ -32,14 +32,36 @@ Human actions are optional: **re-run agent**, **delete**, **copy listing**, **co
 
 ```bash
 cp .env.example .env
-# Add Neon DATABASE_URL + DATABASE_URL_UNPOOLED (see Deploy section)
+# Add Neon DATABASE_URL + DATABASE_URL_UNPOOLED and auth secrets (see below)
 npm install
 npm run db:deploy
 npm run dev
 ```
 
+- **Landing page:** [http://localhost:3000](http://localhost:3000)
+- **Dashboard:** [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
 - **Single item:** [http://localhost:3000/items/new](http://localhost:3000/items/new)
 - **Batch (closet mode):** [http://localhost:3000/items/batch](http://localhost:3000/items/batch) — up to 10 items, processed sequentially in the background
+
+## Authentication
+
+Spot uses Google OAuth for the product dashboard and item workflows. For now, the only authorized Google account is `shedenandemicael@gmail.com`.
+
+Set these environment variables before using the protected app routes:
+
+```bash
+AUTH_SECRET=your-random-session-signing-secret
+GOOGLE_CLIENT_ID=your-google-oauth-client-id
+GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+```
+
+In Google Cloud Console, add this authorized redirect URI for local development:
+
+```text
+http://localhost:3000/api/auth/google/callback
+```
+
+Add the matching production callback URL after deployment.
 
 ## Agent configuration (`.env`)
 

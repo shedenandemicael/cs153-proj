@@ -146,7 +146,7 @@ export function BatchProgress({ batchId }: { batchId: string }) {
       </Card>
 
       {isDone && (
-        <Link href="/">
+        <Link href="/dashboard">
           <Button>Back to dashboard</Button>
         </Link>
       )}
