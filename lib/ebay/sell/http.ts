@@ -4,6 +4,30 @@ import { getValidUserAccessToken } from "../oauth/user-token";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
+/** Inventory API requires locale headers; Node fetch defaults Accept-Language to "*" which eBay rejects (25709). */
+function isInventoryApiPath(path: string): boolean {
+  return path.startsWith("/sell/inventory/");
+}
+
+function buildSellHeaders(token: string, path: string, hasBody: boolean): HeadersInit {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+  };
+
+  if (isInventoryApiPath(path)) {
+    headers["Accept-Language"] = "en-US";
+    if (hasBody) {
+      headers["Content-Type"] = "application/json";
+      headers["Content-Language"] = "en-US";
+    }
+  } else if (hasBody) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  return headers;
+}
+
 export async function ebaySellFetch<T>(
   path: string,
   options: {
@@ -29,17 +53,14 @@ export async function ebaySellFetch<T>(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
+  const hasBody = options.body !== undefined;
+
   try {
     const res = await fetch(url, {
       method,
       signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Content-Language": "en-US",
-      },
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      headers: buildSellHeaders(token, path, hasBody),
+      body: hasBody ? JSON.stringify(options.body) : undefined,
     });
 
     const text = await res.text();
