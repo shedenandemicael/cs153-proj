@@ -9,8 +9,8 @@ export const metadata: Metadata = {
   },
   description: "Spot — AI agent for eBay resale listings from photos to publish.",
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    icon: [{ url: "/spot-logo.jpg", type: "image/jpeg" }],
+    apple: [{ url: "/spot-logo.jpg", type: "image/jpeg" }],
   },
 };
 
