@@ -1,3 +1,5 @@
+import { itemStatusLabel } from "@/lib/utils/item-status";
+
 const statusStyles: Record<string, string> = {
   PROCESSING: "bg-[var(--spot-light)] text-[var(--spot-dark)]",
   AWAITING_INPUT: "bg-amber-100 text-amber-900",
@@ -16,7 +18,7 @@ export function Badge({ status }: { status: string }) {
   const style = statusStyles[status] ?? "bg-slate-100 text-slate-700";
   return (
     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}>
-      {status}
+      {itemStatusLabel(status)}
     </span>
   );
 }

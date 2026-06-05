@@ -2,12 +2,10 @@ import Link from "next/link";
 import { ItemTable } from "@/components/dashboard/ItemTable";
 import { Button } from "@/components/ui/Button";
 import { prisma } from "@/lib/db/prisma";
-import { getAgentConfig } from "@/lib/agent";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const agentConfig = getAgentConfig();
   const items = await prisma.item.findMany({
     orderBy: { updatedAt: "desc" },
     include: {
@@ -23,37 +21,28 @@ export default async function DashboardPage() {
     startingPrice: item.listingDraft?.startingPrice ?? null,
     updatedAt: item.updatedAt.toISOString(),
     imagePath: item.images[0]?.path ?? null,
+    ebayListingUrl: item.listingDraft?.ebayListingUrl ?? null,
   }));
+
+  const liveCount = rows.filter((r) => r.status === "PUBLISHED").length;
+  const needsYou = rows.filter((r) => r.status === "AWAITING_INPUT").length;
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-6">
-        <div className="max-w-xl">
-          <p className="text-sm font-semibold uppercase tracking-wide text-[var(--spot)]">
-            Dashboard
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight text-[var(--foreground)]">
-            Your listings
-          </h1>
-          <p className="mt-2 text-[var(--muted)]">
-            Spot turns photos into researched, priced eBay drafts — and can publish to sandbox when
-            you are ready.
-          </p>
-          <p className="mt-3 text-xs text-[var(--muted)]">
-            Auto-approve ≥{(agentConfig.confidenceThreshold * 100).toFixed(0)}% confidence
-            {agentConfig.autoPublish
-              ? ` · Auto-publish ≥${(agentConfig.publishConfidenceThreshold * 100).toFixed(0)}%`
-              : " · Auto-publish off"}
-          </p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[var(--foreground)]">Listings</h1>
+          {(liveCount > 0 || needsYou > 0) && (
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              {liveCount > 0 ? `${liveCount} live on eBay` : null}
+              {liveCount > 0 && needsYou > 0 ? " · " : null}
+              {needsYou > 0 ? `${needsYou} need your input` : null}
+            </p>
+          )}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/items/batch">
-            <Button>Batch upload</Button>
-          </Link>
-          <Link href="/items/new">
-            <Button variant="secondary">New listing</Button>
-          </Link>
-        </div>
+        <Link href="/items/new">
+          <Button>Add photos</Button>
+        </Link>
       </div>
 
       <ItemTable items={rows} />

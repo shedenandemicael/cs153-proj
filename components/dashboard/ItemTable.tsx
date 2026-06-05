@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { DeleteItemButton } from "@/components/items/DeleteItemButton";
+import { formatRelativeTime } from "@/lib/utils/item-status";
 
 export interface DashboardItem {
   id: string;
@@ -9,18 +10,19 @@ export interface DashboardItem {
   startingPrice: number | null;
   updatedAt: string;
   imagePath: string | null;
+  ebayListingUrl: string | null;
 }
 
 export function ItemTable({ items }: { items: DashboardItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-12 text-center text-[var(--muted)]">
-        <p>No listings yet. Drop in photos and let Spot draft your first item.</p>
-        <Link
-          href="/items/new"
-          className="mt-4 inline-block font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
-        >
-          New listing →
+      <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-10 text-center">
+        <p className="text-[var(--foreground)] font-medium">No listings yet</p>
+        <p className="mt-1 text-sm text-[var(--muted)]">Upload photos — Spot handles the rest.</p>
+        <Link href="/items/new" className="mt-4 inline-block">
+          <span className="font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline">
+            Add photos →
+          </span>
         </Link>
       </div>
     );
@@ -28,19 +30,23 @@ export function ItemTable({ items }: { items: DashboardItem[] }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
-      <table className="min-w-full divide-y divide-slate-200 text-sm">
-        <thead className="bg-slate-50">
+      <table className="min-w-full text-sm">
+        <thead className="border-b border-[var(--border)] bg-[var(--spot-light)]/40">
           <tr>
-            <th className="px-4 py-3 text-left font-medium text-slate-600">Item</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-600">Status</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-600">Est. price</th>
-            <th className="px-4 py-3 text-left font-medium text-slate-600">Updated</th>
-            <th className="px-4 py-3" />
+            <th className="px-4 py-3 text-left font-medium text-[var(--muted)]">Item</th>
+            <th className="hidden px-4 py-3 text-left font-medium text-[var(--muted)] sm:table-cell">
+              Status
+            </th>
+            <th className="px-4 py-3 text-left font-medium text-[var(--muted)]">Price</th>
+            <th className="hidden px-4 py-3 text-left font-medium text-[var(--muted)] md:table-cell">
+              Updated
+            </th>
+            <th className="px-4 py-3 text-right font-medium text-[var(--muted)]">Action</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-[var(--border)]">
           {items.map((item) => (
-            <tr key={item.id} className="hover:bg-slate-50">
+            <tr key={item.id} className="hover:bg-[var(--spot-light)]/30">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
                   {item.imagePath ? (
@@ -48,38 +54,55 @@ export function ItemTable({ items }: { items: DashboardItem[] }) {
                     <img
                       src={item.imagePath}
                       alt=""
-                      className="h-12 w-12 rounded-lg object-cover bg-slate-100"
+                      className="h-11 w-11 shrink-0 rounded-lg object-cover bg-slate-100"
                     />
                   ) : (
-                    <div className="h-12 w-12 rounded-lg bg-slate-100" />
+                    <div className="h-11 w-11 shrink-0 rounded-lg bg-slate-100" />
                   )}
-                  <span className="font-medium text-slate-900 line-clamp-1">
-                    {item.title ?? "Untitled draft"}
-                  </span>
+                  <div className="min-w-0">
+                    <p className="font-medium text-[var(--foreground)] line-clamp-1">
+                      {item.title ?? "Untitled"}
+                    </p>
+                    <div className="mt-0.5 sm:hidden">
+                      <Badge status={item.status} />
+                    </div>
+                  </div>
                 </div>
               </td>
-              <td className="px-4 py-3">
+              <td className="hidden px-4 py-3 sm:table-cell">
                 <Badge status={item.status} />
               </td>
-              <td className="px-4 py-3 text-slate-700">
-                {item.startingPrice != null ? `$${item.startingPrice.toFixed(2)}` : "—"}
+              <td className="px-4 py-3 font-medium text-[var(--foreground)]">
+                {item.startingPrice != null ? `$${item.startingPrice.toFixed(0)}` : "—"}
               </td>
-              <td className="px-4 py-3 text-slate-500">
-                {new Date(item.updatedAt).toLocaleString()}
+              <td className="hidden px-4 py-3 text-[var(--muted)] md:table-cell">
+                {formatRelativeTime(item.updatedAt)}
               </td>
               <td className="px-4 py-3 text-right">
-                <div className="flex items-center justify-end gap-3">
-                  <Link
-                    href={`/items/${item.id}`}
-                    className="font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
-                  >
-                    Open
-                  </Link>
-                  <DeleteItemButton
-                    itemId={item.id}
-                    itemLabel={item.title ?? "Untitled draft"}
-                    variant="link"
-                  />
+                <div className="flex flex-col items-end gap-1">
+                  {item.ebayListingUrl ? (
+                    <a
+                      href={item.ebayListingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+                    >
+                      View on eBay
+                    </a>
+                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/items/${item.id}`}
+                      className="text-[var(--muted)] hover:text-[var(--spot)] hover:underline"
+                    >
+                      {item.ebayListingUrl ? "Details" : "Open"}
+                    </Link>
+                    <DeleteItemButton
+                      itemId={item.id}
+                      itemLabel={item.title ?? "Untitled"}
+                      variant="link"
+                    />
+                  </div>
                 </div>
               </td>
             </tr>

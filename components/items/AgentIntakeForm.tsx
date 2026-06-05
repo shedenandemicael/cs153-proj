@@ -47,15 +47,8 @@ export function AgentIntakeForm() {
 
   return (
     <Card>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <Alert variant="info">
-          Upload photos and optional notes. The agent will research comps, set price, write the
-          listing, approve, evaluate, and publish (if configured) — no manual steps required.
-        </Alert>
-
+      <form onSubmit={handleSubmit} className="space-y-5">
         <section>
-          <h2 className="text-lg font-semibold text-slate-900">Photos</h2>
-          <p className="mt-1 text-sm text-slate-500">1–5 images — required for vision analysis.</p>
           <input
             type="file"
             name="images"
@@ -63,7 +56,7 @@ export function AgentIntakeForm() {
             multiple
             required
             onChange={handleFileChange}
-            className="mt-3 block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-blue-700 hover:file:bg-blue-100"
+            className="block w-full text-sm text-[var(--muted)] file:mr-4 file:rounded-lg file:border-0 file:bg-[var(--spot-light)] file:px-4 file:py-2 file:text-sm file:font-medium file:text-[var(--spot-dark)] hover:file:bg-[var(--spot-glow)]"
           />
           {previews.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -101,8 +94,8 @@ export function AgentIntakeForm() {
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        <Button type="submit" loading={loading}>
-          {loading ? "Agent working…" : "Run autonomous agent"}
+        <Button type="submit" loading={loading} className="w-full">
+          {loading ? "Working…" : "List this item"}
         </Button>
       </form>
     </Card>

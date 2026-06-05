@@ -52,6 +52,7 @@ export async function POST(
       where: { itemId: id },
       data: {
         ebayOfferId: result.offerId,
+        ebayListingUrl: result.listingUrl ?? null,
         publishedAt: new Date(),
       },
     });

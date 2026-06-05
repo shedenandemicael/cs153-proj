@@ -2,12 +2,10 @@ import { AgentIntakeForm } from "@/components/items/AgentIntakeForm";
 
 export default function NewItemPage() {
   return (
-    <div>
-      <p className="text-sm font-semibold uppercase tracking-wide text-[var(--spot)]">New listing</p>
-      <h1 className="mb-2 text-2xl font-bold text-[var(--foreground)]">Add an item</h1>
-      <p className="mb-6 text-[var(--muted)]">
-        Upload photos and notes. Spot researches comps, writes the listing, and can publish to eBay
-        sandbox when you approve.
+    <div className="mx-auto max-w-xl">
+      <h1 className="text-2xl font-bold text-[var(--foreground)]">Add photos</h1>
+      <p className="mt-1 mb-6 text-sm text-[var(--muted)]">
+        Spot prices, writes, and lists your item. Optional notes help if anything&apos;s unclear.
       </p>
       <AgentIntakeForm />
     </div>

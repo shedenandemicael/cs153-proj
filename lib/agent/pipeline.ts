@@ -358,7 +358,11 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
       offerId = result.offerId;
       await prisma.listingDraft.update({
         where: { itemId },
-        data: { ebayOfferId: result.offerId, publishedAt: new Date() },
+        data: {
+          ebayOfferId: result.offerId,
+          ebayListingUrl: result.listingUrl ?? null,
+          publishedAt: new Date(),
+        },
       });
       await prisma.item.update({ where: { id: itemId }, data: { status: "PUBLISHED" } });
       published = true;

@@ -25,6 +25,7 @@ export async function GET() {
         startingPrice: item.listingDraft?.startingPrice ?? null,
         updatedAt: item.updatedAt.toISOString(),
         imagePath: item.images[0]?.path ?? null,
+        ebayListingUrl: item.listingDraft?.ebayListingUrl ?? null,
       })),
     });
   } catch (error) {

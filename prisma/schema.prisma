@@ -106,6 +106,7 @@ model ListingDraft {
   approvedAt          DateTime?
   publishedAt         DateTime?
   ebayOfferId         String?
+  ebayListingUrl      String?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 }

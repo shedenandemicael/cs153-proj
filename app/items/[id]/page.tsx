@@ -16,6 +16,40 @@ import type { AgentStepLog, AgentQuestion } from "@/lib/agent/types";
 
 export const dynamic = "force-dynamic";
 
+function statusBanner(status: string, error?: string | null, listingUrl?: string | null) {
+  if (status === "PROCESSING") {
+    return <Alert variant="info">Spot is working on this listing…</Alert>;
+  }
+  if (status === "AWAITING_INPUT") {
+    return <Alert variant="warning">Answer the quick question to continue.</Alert>;
+  }
+  if (status === "FAILED") {
+    return (
+      <Alert variant="error">
+        Couldn&apos;t finish this listing.{error ? ` ${error}` : " Try again with clearer photos."}
+      </Alert>
+    );
+  }
+  if (status === "PUBLISHED" && listingUrl) {
+    return (
+      <Alert variant="success">
+        <a
+          href={listingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium underline"
+        >
+          View on eBay →
+        </a>
+      </Alert>
+    );
+  }
+  if (status === "READY" || status === "GENERATED" || status === "REVIEWED") {
+    return <Alert variant="success">Ready to publish.</Alert>;
+  }
+  return null;
+}
+
 export default async function ItemAgentPage({
   params,
 }: {
@@ -27,8 +61,7 @@ export default async function ItemAgentPage({
     include: {
       images: { orderBy: { sortOrder: "asc" } },
       listingDraft: true,
-      comparables: { orderBy: { price: "asc" } },
-      evaluation: true,
+      comparables: { orderBy: { price: "asc" }, take: 6 },
       agentRuns: { orderBy: { startedAt: "desc" }, take: 1 },
     },
   });
@@ -38,9 +71,8 @@ export default async function ItemAgentPage({
   const latestRun = item.agentRuns[0];
   const steps = latestRun ? (JSON.parse(latestRun.steps) as AgentStepLog[]) : [];
   const pendingQuestions = parseJsonArray<AgentQuestion>(latestRun?.pendingQuestions);
-
   const draft = item.listingDraft;
-  const legacyReady = item.status === "GENERATED" || item.status === "REVIEWED";
+  const listingUrl = draft?.ebayListingUrl ?? null;
   const sellerNotes = {
     brand: item.notesBrand ?? undefined,
     size: item.notesSize ?? undefined,
@@ -48,7 +80,7 @@ export default async function ItemAgentPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <ItemAgentShell
         itemId={id}
         itemStatus={item.status}
@@ -56,92 +88,78 @@ export default async function ItemAgentPage({
         pendingQuestions={pendingQuestions}
       />
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <Link
             href="/"
-            className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+            className="text-sm text-[var(--muted)] hover:text-[var(--spot)] hover:underline"
           >
-            ← Dashboard
+            ← Listings
           </Link>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">
-            {draft?.title ?? "Agent run"}
+          <h1 className="mt-1 text-xl font-bold text-[var(--foreground)] line-clamp-2">
+            {draft?.title ?? "Listing"}
           </h1>
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2">
             <Badge status={item.status} />
-            <Link href={`/items/${id}/evaluate`} className="text-sm text-slate-500 hover:underline">
-              Metrics →
-            </Link>
           </div>
         </div>
         <AgentActions itemId={id} itemLabel={draft?.title ?? "this item"} />
       </div>
 
-      {item.status === "PROCESSING" && (
-        <Alert variant="info">Agent is processing this item…</Alert>
-      )}
+      {statusBanner(item.status, latestRun?.error, listingUrl)}
 
-      {item.status === "AWAITING_INPUT" && (
-        <Alert variant="warning">
-          The agent needs your input before it can finish — answer the popup to continue.
-        </Alert>
-      )}
-
-      {item.status === "FAILED" && (
-        <Alert variant="error">
-          Agent could not complete autonomously. Check the run log or re-run with better photos/notes.
-          {latestRun?.error ? ` ${latestRun.error}` : ""}
-        </Alert>
-      )}
-
-      {(item.status === "READY" || item.status === "PUBLISHED" || legacyReady) && (
-        <Alert variant="success">
-          {item.status === "PUBLISHED"
-            ? "Agent completed and published to eBay sandbox."
-            : "Agent completed listing autonomously — ready for eBay."}
-        </Alert>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-1">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
-            <h3 className="mb-3 text-sm font-semibold">Photos</h3>
-            <div className="grid grid-cols-2 gap-2">
+          {item.images.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3">
               {item.images.map((img) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={img.id}
                   src={img.path}
-                  alt={img.filename}
+                  alt=""
                   className="aspect-square rounded-lg object-cover bg-slate-100"
                 />
               ))}
             </div>
-          </div>
-          <AgentRunTimeline
-            steps={steps}
-            runStatus={latestRun?.status}
-            error={latestRun?.error}
-          />
+          )}
           <Suspense fallback={null}>
             <EbaySellPanel
               itemId={id}
               itemStatus={item.status}
               draftStatus={draft?.status}
+              savedListingUrl={listingUrl}
             />
           </Suspense>
-          <ComparableList
-            comparables={item.comparables.map((c) => ({
-              id: c.id,
-              title: c.title,
-              price: c.price,
-              condition: c.condition,
-              soldDate: c.soldDate?.toISOString() ?? null,
-              url: c.url,
-              listingType: c.listingType,
-              source: c.source,
-            }))}
-          />
+          {item.comparables.length > 0 && (
+            <ComparableList
+              comparables={item.comparables.map((c) => ({
+                id: c.id,
+                title: c.title,
+                price: c.price,
+                condition: c.condition,
+                soldDate: c.soldDate?.toISOString() ?? null,
+                url: c.url,
+                listingType: c.listingType,
+                source: c.source,
+              }))}
+            />
+          )}
+          {steps.length > 0 && (
+            <details className="rounded-2xl border border-[var(--border)] bg-[var(--card)]">
+              <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-[var(--muted)]">
+                Activity log
+              </summary>
+              <div className="border-t border-[var(--border)] px-2 pb-2">
+                <AgentRunTimeline
+                  steps={steps}
+                  runStatus={latestRun?.status}
+                  error={latestRun?.error}
+                  compact
+                />
+              </div>
+            </details>
+          )}
         </div>
         <div className="lg:col-span-2">
           {draft ? (
@@ -154,19 +172,15 @@ export default async function ItemAgentPage({
                 categoryName: draft.categoryName ?? undefined,
                 startingPrice: draft.startingPrice,
                 buyItNowPrice: draft.buyItNowPrice ?? undefined,
-                shippingAssumptions: draft.shippingAssumptions ?? undefined,
                 confidenceScore: draft.confidenceScore,
                 warnings: parseJsonArray(draft.warnings),
                 questions: filterListingQuestions(parseJsonArray(draft.questions), sellerNotes),
                 pricingRationale: draft.pricingRationale,
-                pricingMethod: draft.pricingMethod,
-                draftStatus: draft.status,
-                itemStatus: item.status,
-                ebayOfferId: draft.ebayOfferId,
+                ebayListingUrl: listingUrl,
               }}
             />
           ) : (
-            <Alert variant="warning">No listing output yet. Re-run the agent.</Alert>
+            <Alert variant="warning">No listing yet — re-run Spot.</Alert>
           )}
         </div>
       </div>

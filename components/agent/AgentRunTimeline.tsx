@@ -1,15 +1,14 @@
-import { Card } from "@/components/ui/Card";
 import type { AgentStepLog } from "@/lib/agent/types";
 
 const STEP_LABELS: Record<string, string> = {
-  identify_item: "Photo identification",
-  await_user_input: "Seller input",
-  fetch_comparables: "Market research",
-  determine_price: "Price analysis",
-  generate_listing: "Listing generation",
-  auto_approve: "Auto-approve",
-  auto_evaluate: "Evaluation",
-  auto_publish: "Publish",
+  identify_item: "Photos",
+  await_user_input: "Your input",
+  fetch_comparables: "Comps",
+  determine_price: "Price",
+  generate_listing: "Listing",
+  auto_approve: "Approved",
+  auto_evaluate: "Done",
+  auto_publish: "Published",
 };
 
 function statusIcon(status: string) {
@@ -20,59 +19,45 @@ function statusIcon(status: string) {
       return "✕";
     case "skipped":
       return "○";
-    case "running":
-      return "…";
     default:
-      return "·";
+      return "…";
   }
 }
 
 export function AgentRunTimeline({
   steps,
-  runStatus,
   error,
+  compact = false,
 }: {
   steps: AgentStepLog[];
   runStatus?: string | null;
   error?: string | null;
+  compact?: boolean;
 }) {
   return (
-    <Card>
-      <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">Agent run</h3>
-        {runStatus && (
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            {runStatus}
-          </span>
-        )}
-      </div>
-      <ol className="space-y-3">
+    <div className={compact ? "py-2" : ""}>
+      <ol className="space-y-2">
         {steps.map((s, i) => (
-          <li key={`${s.id}-${i}`} className="flex gap-3 text-sm">
+          <li key={`${s.id}-${i}`} className="flex gap-2 text-sm">
             <span
-              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                 s.status === "completed"
                   ? "bg-green-100 text-green-800"
                   : s.status === "failed"
                     ? "bg-red-100 text-red-800"
-                    : s.status === "skipped"
-                      ? "bg-slate-100 text-slate-500"
-                      : "bg-blue-100 text-blue-800"
+                    : "bg-[var(--spot-light)] text-[var(--spot-dark)]"
               }`}
             >
               {statusIcon(s.status)}
             </span>
-            <div>
-              <p className="font-medium text-slate-800">
-                {STEP_LABELS[s.id] ?? s.id}
-              </p>
-              <p className="text-slate-600">{s.message}</p>
-              <p className="text-xs text-slate-400">{new Date(s.at).toLocaleTimeString()}</p>
+            <div className="min-w-0">
+              <p className="font-medium text-[var(--foreground)]">{STEP_LABELS[s.id] ?? s.id}</p>
+              {!compact && <p className="text-[var(--muted)]">{s.message}</p>}
             </div>
           </li>
         ))}
       </ol>
-      {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
-    </Card>
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </div>
   );
 }
