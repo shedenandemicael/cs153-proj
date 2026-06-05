@@ -8,6 +8,8 @@ import { ComparableList } from "@/components/items/ComparableList";
 import { AgentActions } from "@/components/items/AgentActions";
 import { ItemAgentShell } from "@/components/items/ItemAgentShell";
 import { EbaySellPanel } from "@/components/ebay/EbaySellPanel";
+import { ViewOnEbayLink } from "@/components/ebay/ViewOnEbayLink";
+import { resolveEbayListingUrl } from "@/lib/ebay/sell/resolve-listing-url";
 import { Suspense } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
@@ -27,20 +29,6 @@ function statusBanner(status: string, error?: string | null, listingUrl?: string
     return (
       <Alert variant="error">
         Couldn&apos;t finish this listing.{error ? ` ${error}` : " Try again with clearer photos."}
-      </Alert>
-    );
-  }
-  if (status === "PUBLISHED" && listingUrl) {
-    return (
-      <Alert variant="success">
-        <a
-          href={listingUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="font-medium underline"
-        >
-          View on eBay →
-        </a>
       </Alert>
     );
   }
@@ -72,7 +60,22 @@ export default async function ItemAgentPage({
   const steps = latestRun ? (JSON.parse(latestRun.steps) as AgentStepLog[]) : [];
   const pendingQuestions = parseJsonArray<AgentQuestion>(latestRun?.pendingQuestions);
   const draft = item.listingDraft;
-  const listingUrl = draft?.ebayListingUrl ?? null;
+  let listingUrl = draft?.ebayListingUrl ?? null;
+
+  if (item.status === "PUBLISHED" || draft?.publishedAt) {
+    listingUrl = await resolveEbayListingUrl({
+      itemId: id,
+      savedUrl: listingUrl,
+      agentSteps: steps,
+    });
+    if (listingUrl && draft && !draft.ebayListingUrl) {
+      await prisma.listingDraft.update({
+        where: { itemId: id },
+        data: { ebayListingUrl: listingUrl },
+      });
+    }
+  }
+
   const sellerNotes = {
     brand: item.notesBrand ?? undefined,
     size: item.notesSize ?? undefined,
@@ -103,7 +106,10 @@ export default async function ItemAgentPage({
             <Badge status={item.status} />
           </div>
         </div>
-        <AgentActions itemId={id} itemLabel={draft?.title ?? "this item"} />
+        <div className="flex flex-wrap items-center gap-2">
+          {listingUrl ? <ViewOnEbayLink url={listingUrl} /> : null}
+          <AgentActions itemId={id} itemLabel={draft?.title ?? "this item"} />
+        </div>
       </div>
 
       {statusBanner(item.status, latestRun?.error, listingUrl)}
@@ -123,14 +129,21 @@ export default async function ItemAgentPage({
               ))}
             </div>
           )}
-          <Suspense fallback={null}>
-            <EbaySellPanel
-              itemId={id}
-              itemStatus={item.status}
-              draftStatus={draft?.status}
-              savedListingUrl={listingUrl}
-            />
-          </Suspense>
+          {listingUrl ? (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4">
+              <p className="text-sm font-medium text-[var(--foreground)]">On eBay</p>
+              <ViewOnEbayLink url={listingUrl} size="compact" className="mt-2" />
+            </div>
+          ) : item.status !== "PUBLISHED" ? (
+            <Suspense fallback={null}>
+              <EbaySellPanel
+                itemId={id}
+                itemStatus={item.status}
+                draftStatus={draft?.status}
+                savedListingUrl={null}
+              />
+            </Suspense>
+          ) : null}
           {item.comparables.length > 0 && (
             <ComparableList
               comparables={item.comparables.map((c) => ({

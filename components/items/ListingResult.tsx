@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { ViewOnEbayLink } from "@/components/ebay/ViewOnEbayLink";
 
 export interface ListingResultData {
   title: string;
@@ -107,16 +108,7 @@ export function ListingResult({ data }: { data: ListingResultData }) {
       </dl>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        {data.ebayListingUrl ? (
-          <a
-            href={data.ebayListingUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-lg bg-[var(--spot)] px-4 py-2 text-sm font-medium text-white hover:bg-[var(--spot-dark)]"
-          >
-            View on eBay
-          </a>
-        ) : null}
+        {data.ebayListingUrl ? <ViewOnEbayLink url={data.ebayListingUrl} /> : null}
         <Button type="button" variant="secondary" onClick={copyListing}>
           {copied ? "Copied" : "Copy text"}
         </Button>
