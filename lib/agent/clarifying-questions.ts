@@ -5,8 +5,11 @@ import type { ItemNotes } from "@/types";
 const SIZE_RELEVANT =
   /\b(sneaker|sneakers|shoe|shoes|boot|boots|footwear|sandal|loafer|trainer|cleat|slipper|air max|jordan|dunk|yeezy)\b/i;
 
+const APPAREL_SIZED =
+  /\b(shirt|jacket|dress|pants|jeans|hoodie|sweater|coat|blazer|skirt|shorts|top|blouse|tee|t-?shirt|cardigan|vest|suit|legging|jogger|sweatshirt|pullover|parka|windbreaker|denim|apparel|clothing)\b/i;
+
 const NON_SIZED =
-  /\b(book|lamp|figure|figurine|toy|electronics|phone|tablet|case|poster|card|coin|handkerchief|tenugui|gacha|strap|patch|pouch|soap dish|blocks)\b/i;
+  /\b(book|lamp|figure|figurine|toy|electronic|electronics|phone|tablet|monitor|display|screen|console|xbox|playstation|nintendo|switch|controller|gamepad|gaming|computer|laptop|pc|macbook|gpu|cpu|keyboard|mouse|camera|tv|television|speaker|headphone|earbuds|charger|cable|adapter|handheld|case|poster|card|coin|handkerchief|tenugui|gacha|strap|patch|pouch|soap dish|blocks|dell|hp|lenovo)\b/i;
 
 function productHaystack(
   searchQuery: string,
@@ -17,12 +20,14 @@ function productHaystack(
     .join(" ");
 }
 
-function textSignalsSize(searchQuery: string, identification: ItemIdentification | null): boolean {
-  return SIZE_RELEVANT.test(productHaystack(searchQuery, identification));
-}
-
 function isNonSizedProduct(searchQuery: string, identification: ItemIdentification | null): boolean {
   return NON_SIZED.test(productHaystack(searchQuery, identification));
+}
+
+function isSizeRelevantProduct(searchQuery: string, identification: ItemIdentification | null): boolean {
+  if (isNonSizedProduct(searchQuery, identification)) return false;
+  const haystack = productHaystack(searchQuery, identification);
+  return SIZE_RELEVANT.test(haystack) || APPAREL_SIZED.test(haystack);
 }
 
 function hasSize(notes: ItemNotes, identification: ItemIdentification | null): boolean {
@@ -37,30 +42,36 @@ function sizeQuestionText(searchQuery: string, identification: ItemIdentificatio
   if (/\b(shoe|boot|footwear)\b/.test(haystack)) {
     return "What is the shoe size? (e.g. US men's 10, women's 8.5)";
   }
-  return "What is the size? (e.g. US men's 10, women's 8.5, Medium)";
+  if (APPAREL_SIZED.test(haystack)) {
+    return "What size is it? (e.g. Medium, Large, 32x34)";
+  }
+  return "What size is it?";
+}
+
+function sizeQuestionPlaceholder(searchQuery: string, identification: ItemIdentification | null): string {
+  const haystack = productHaystack(searchQuery, identification).toLowerCase();
+  if (SIZE_RELEVANT.test(haystack)) return "US men's 10";
+  if (APPAREL_SIZED.test(haystack)) return "Medium";
+  return "";
 }
 
 /** Questions the agent should ask before market research when photos/notes are incomplete. */
 export function buildClarifyingQuestions(
   notes: ItemNotes,
   identification: ItemIdentification | null,
-  searchQuery: string,
-  options?: { hasImages?: boolean }
+  searchQuery: string
 ): AgentQuestion[] {
   const questions: AgentQuestion[] = [];
-  const hasImages = options?.hasImages ?? false;
 
   const needsSize =
-    !hasSize(notes, identification) &&
-    !isNonSizedProduct(searchQuery, identification) &&
-    (hasImages || textSignalsSize(searchQuery, identification) || Boolean(identification?.brand));
+    !hasSize(notes, identification) && isSizeRelevantProduct(searchQuery, identification);
 
   if (needsSize) {
     questions.push({
       id: "size",
       field: "size",
       question: sizeQuestionText(searchQuery, identification),
-      placeholder: "US men's 10",
+      placeholder: sizeQuestionPlaceholder(searchQuery, identification),
       required: true,
     });
   }
@@ -75,7 +86,11 @@ export function buildClarifyingQuestions(
     });
   }
 
-  if (!notes.condition?.trim() && !identification?.condition?.trim()) {
+  if (
+    !notes.condition?.trim() &&
+    !identification?.condition?.trim() &&
+    !isNonSizedProduct(searchQuery, identification)
+  ) {
     questions.push({
       id: "condition",
       field: "condition",

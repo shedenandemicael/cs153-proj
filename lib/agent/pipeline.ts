@@ -121,8 +121,7 @@ export async function runAutonomousAgent(itemId: string): Promise<AutonomousRunR
     const clarifyingQuestions = buildClarifyingQuestions(
       enrichedNotes,
       identification,
-      searchQuery,
-      { hasImages: imagePaths.length > 0 }
+      searchQuery
     );
 
     if (clarifyingQuestions.length > 0) {
