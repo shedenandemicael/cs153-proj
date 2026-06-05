@@ -12,11 +12,18 @@ import {
   type ClusterDraft,
 } from "@/components/items/BatchClusterReview";
 import type { BatchImageCluster } from "@/lib/ai/cluster-batch-images";
+import {
+  compressImagesForBatch,
+  formatBytes,
+  totalFileBytes,
+} from "@/lib/client/compress-batch-images";
+import { parseApiJsonResponse } from "@/lib/client/parse-api-response";
 
 const MAX_PHOTOS = 30;
 const MAX_LISTINGS = 10;
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
-type Step = "upload" | "clustering" | "review" | "submitting";
+type Step = "upload" | "preparing" | "clustering" | "review" | "submitting";
 
 export function BatchIntakeForm() {
   const router = useRouter();
@@ -25,6 +32,7 @@ export function BatchIntakeForm() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [step, setStep] = useState<Step>("upload");
   const [clusters, setClusters] = useState<ClusterDraft[]>([]);
+  const [uploadFiles, setUploadFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -38,6 +46,7 @@ export function BatchIntakeForm() {
       return newFiles.map((f) => URL.createObjectURL(f));
     });
     setFiles(newFiles);
+    setUploadFiles([]);
   }
 
   function addFiles(incoming: File[]) {
@@ -62,21 +71,37 @@ export function BatchIntakeForm() {
     setFilesWithPreviews(next);
   }
 
+  async function prepareUploadFiles(): Promise<File[]> {
+    setStep("preparing");
+    const compressed = await compressImagesForBatch(files);
+    setUploadFiles(compressed);
+
+    if (totalFileBytes(compressed) > MAX_UPLOAD_BYTES) {
+      throw new Error(
+        `Prepared upload is ${formatBytes(totalFileBytes(compressed))} — try fewer photos or smaller originals.`
+      );
+    }
+
+    return compressed;
+  }
+
   async function startClustering() {
     if (files.length === 0) {
       setError("Add at least one photo.");
       return;
     }
     setError(null);
-    setStep("clustering");
-
-    const formData = new FormData();
-    files.forEach((file) => formData.append("images", file));
 
     try {
+      const prepared = uploadFiles.length > 0 ? uploadFiles : await prepareUploadFiles();
+      setStep("clustering");
+
+      const formData = new FormData();
+      prepared.forEach((file) => formData.append("images", file));
+
       const res = await fetch("/api/items/batch/cluster", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Could not group photos");
+      const data = await parseApiJsonResponse(res);
+      if (!res.ok) throw new Error(String(data.error ?? "Could not group photos"));
 
       const result = data.clusters as BatchImageCluster[];
       setClusters(clustersToDrafts(result));
@@ -90,6 +115,7 @@ export function BatchIntakeForm() {
   function handleBack() {
     setStep("upload");
     setClusters([]);
+    setUploadFiles([]);
     setError(null);
   }
 
@@ -97,20 +123,40 @@ export function BatchIntakeForm() {
     setStep("submitting");
     setError(null);
 
-    const formData = new FormData();
-    files.forEach((file) => formData.append("images", file));
-    const confirmed = clusters.filter((c) => c.imageIndices.length > 0);
-    formData.append("meta[clusters]", JSON.stringify(draftsToClusters(confirmed)));
-
     try {
+      const prepared =
+        uploadFiles.length > 0 ? uploadFiles : await compressImagesForBatch(files);
+      setUploadFiles(prepared);
+
+      if (totalFileBytes(prepared) > MAX_UPLOAD_BYTES) {
+        throw new Error(
+          `Prepared upload is ${formatBytes(totalFileBytes(prepared))} — try fewer photos or smaller originals.`
+        );
+      }
+
+      const formData = new FormData();
+      prepared.forEach((file) => formData.append("images", file));
+      const confirmed = clusters.filter((c) => c.imageIndices.length > 0);
+      formData.append("meta[clusters]", JSON.stringify(draftsToClusters(confirmed)));
+
       const res = await fetch("/api/items/batch", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Batch failed");
+      const data = await parseApiJsonResponse(res);
+      if (!res.ok) throw new Error(String(data.error ?? "Batch failed"));
       router.push(`/items/batch/${data.batchId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Batch failed");
       setStep("review");
     }
+  }
+
+  if (step === "preparing") {
+    return (
+      <Card className="px-6 py-16 text-center">
+        <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[var(--spot,#6488ea)]" />
+        <p className="text-lg font-medium text-slate-900">Preparing photos…</p>
+        <p className="mt-1 text-sm text-slate-500">Compressing images for upload</p>
+      </Card>
+    );
   }
 
   if (step === "clustering") {
