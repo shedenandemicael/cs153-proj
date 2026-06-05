@@ -58,7 +58,10 @@ export default async function ItemAgentPage({
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href="/" className="text-sm text-blue-600 hover:underline">
+          <Link
+            href="/"
+            className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+          >
             ← Dashboard
           </Link>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">

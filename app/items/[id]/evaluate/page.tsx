@@ -25,7 +25,10 @@ export default async function EvaluatePage({
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <Link href={`/items/${id}`} className="text-sm text-blue-600 hover:underline">
+          <Link
+            href={`/items/${id}`}
+            className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+          >
             ← Agent result
           </Link>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">Agent metrics</h1>

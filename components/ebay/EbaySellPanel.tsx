@@ -32,6 +32,7 @@ export function EbaySellPanel({
   const [publishLoading, setPublishLoading] = useState(false);
   const [setupLoading, setSetupLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [listingUrl, setListingUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadStatus = useCallback(async () => {
@@ -114,11 +115,17 @@ export function EbaySellPanel({
     setPublishLoading(true);
     setError(null);
     setMessage(null);
+    setListingUrl(null);
     try {
       const res = await fetch(`/api/items/${itemId}/publish`, { method: "POST" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Publish failed");
-      setMessage(data.message ?? "Published to eBay sandbox.");
+      setListingUrl(typeof data.listingUrl === "string" ? data.listingUrl : null);
+      setMessage(
+        data.listingUrl
+          ? "Published to eBay sandbox."
+          : (data.message ?? "Published to eBay sandbox.")
+      );
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Publish failed");
@@ -133,9 +140,9 @@ export function EbaySellPanel({
     (itemStatus === "READY" || itemStatus === "GENERATED" || itemStatus === "REVIEWED");
 
   return (
-    <Card>
-      <h3 className="text-sm font-semibold text-slate-900">eBay sandbox publish</h3>
-      <p className="mt-1 text-sm text-slate-600">
+    <Card className="min-w-0">
+      <h3 className="text-sm font-semibold text-[var(--foreground)]">eBay sandbox publish</h3>
+      <p className="mt-1 text-sm text-[var(--muted)]">
         Connect a sandbox seller account. Business policies (payment, return, shipping) are created
         automatically via the eBay API — no Seller Hub required.
       </p>
@@ -184,8 +191,20 @@ export function EbaySellPanel({
       </div>
 
       {message && (
-        <div className="mt-3">
-          <Alert variant="success">{message}</Alert>
+        <div className="mt-3 min-w-0">
+          <Alert variant="success">
+            <p>{message}</p>
+            {listingUrl ? (
+              <a
+                href={listingUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-block break-all font-medium underline"
+              >
+                View sandbox listing
+              </a>
+            ) : null}
+          </Alert>
         </div>
       )}
       {error && (

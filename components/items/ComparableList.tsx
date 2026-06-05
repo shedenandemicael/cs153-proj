@@ -62,7 +62,7 @@ export function ComparableList({ comparables }: { comparables: ComparableRow[] }
                     href={c.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-slate-700 line-clamp-2 hover:text-blue-600 hover:underline"
+                    className="line-clamp-2 text-slate-700 hover:text-[var(--spot)] hover:underline"
                   >
                     {c.title}
                   </a>

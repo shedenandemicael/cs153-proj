@@ -16,7 +16,10 @@ export default async function BatchStatusPage({
 
   return (
     <div>
-      <Link href="/items/batch" className="text-sm text-blue-600 hover:underline">
+      <Link
+        href="/items/batch"
+        className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+      >
         ← New batch
       </Link>
       <h1 className="mt-2 text-2xl font-bold text-slate-900">Batch #{id.slice(0, 8)}</h1>

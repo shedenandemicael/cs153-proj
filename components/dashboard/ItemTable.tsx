@@ -14,17 +14,20 @@ export interface DashboardItem {
 export function ItemTable({ items }: { items: DashboardItem[] }) {
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-500">
-        <p>No items yet. Create your first listing draft.</p>
-        <Link href="/items/new" className="mt-4 inline-block text-blue-600 hover:underline">
-          Add item →
+      <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-12 text-center text-[var(--muted)]">
+        <p>No listings yet. Drop in photos and let Spot draft your first item.</p>
+        <Link
+          href="/items/new"
+          className="mt-4 inline-block font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+        >
+          New listing →
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
       <table className="min-w-full divide-y divide-slate-200 text-sm">
         <thead className="bg-slate-50">
           <tr>
@@ -66,7 +69,10 @@ export function ItemTable({ items }: { items: DashboardItem[] }) {
               </td>
               <td className="px-4 py-3 text-right">
                 <div className="flex items-center justify-end gap-3">
-                  <Link href={`/items/${item.id}`} className="text-blue-600 hover:underline">
+                  <Link
+                    href={`/items/${item.id}`}
+                    className="font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+                  >
                     Open
                   </Link>
                   <DeleteItemButton

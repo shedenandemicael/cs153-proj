@@ -1,11 +1,11 @@
 const statusStyles: Record<string, string> = {
-  PROCESSING: "bg-blue-100 text-blue-800",
+  PROCESSING: "bg-[var(--spot-light)] text-[var(--spot-dark)]",
   AWAITING_INPUT: "bg-amber-100 text-amber-900",
   READY: "bg-green-100 text-green-800",
   PUBLISHED: "bg-emerald-100 text-emerald-900",
   FAILED: "bg-red-100 text-red-800",
   INTAKE: "bg-slate-100 text-slate-700",
-  GENERATED: "bg-blue-100 text-blue-800",
+  GENERATED: "bg-[var(--spot-light)] text-[var(--spot-dark)]",
   REVIEWED: "bg-green-100 text-green-800",
   DRAFT: "bg-slate-100 text-slate-700",
   APPROVED: "bg-green-100 text-green-800",

@@ -88,7 +88,7 @@ export function BatchProgress({ batchId }: { batchId: string }) {
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full rounded-full bg-blue-600 transition-all duration-500"
+              className="h-full rounded-full bg-[var(--spot)] transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -134,7 +134,10 @@ export function BatchProgress({ batchId }: { batchId: string }) {
                 )}
               </div>
               <Badge status={item.status} />
-              <Link href={`/items/${item.id}`} className="text-sm text-blue-600 hover:underline">
+              <Link
+                href={`/items/${item.id}`}
+                className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+              >
                 View
               </Link>
             </li>

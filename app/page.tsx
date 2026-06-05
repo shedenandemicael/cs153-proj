@@ -27,13 +27,19 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Autonomous resale agent</h1>
-          <p className="mt-1 text-slate-600">
-            Upload photos → agent researches, prices, lists, and publishes with no manual review.
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-6">
+        <div className="max-w-xl">
+          <p className="text-sm font-semibold uppercase tracking-wide text-[var(--spot)]">
+            Dashboard
           </p>
-          <p className="mt-2 text-xs text-slate-500">
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-[var(--foreground)]">
+            Your listings
+          </h1>
+          <p className="mt-2 text-[var(--muted)]">
+            Spot turns photos into researched, priced eBay drafts — and can publish to sandbox when
+            you are ready.
+          </p>
+          <p className="mt-3 text-xs text-[var(--muted)]">
             Auto-approve ≥{(agentConfig.confidenceThreshold * 100).toFixed(0)}% confidence
             {agentConfig.autoPublish
               ? ` · Auto-publish ≥${(agentConfig.publishConfidenceThreshold * 100).toFixed(0)}%`
@@ -45,7 +51,7 @@ export default async function DashboardPage() {
             <Button>Batch upload</Button>
           </Link>
           <Link href="/items/new">
-            <Button variant="secondary">Single item</Button>
+            <Button variant="secondary">New listing</Button>
           </Link>
         </div>
       </div>
