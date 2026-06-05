@@ -1,4 +1,8 @@
 import { runAutonomousAgent } from "@/lib/agent";
+import {
+  orderFilesForCluster,
+  type BatchImageCluster,
+} from "@/lib/ai/cluster-batch-images";
 import { prisma } from "@/lib/db/prisma";
 import {
   createItemWithImages,
@@ -38,6 +42,82 @@ function parseGlobalFields(formData: FormData): ItemIntakeFields {
     minPrice: parseNum("minPrice"),
     freeformNotes: get("freeformNotes"),
   };
+}
+
+function getMaxImagesPerClusterItem(): number {
+  return parseInt(process.env.BATCH_SINGLE_MAX_IMAGES ?? "10", 10) || 10;
+}
+
+function parseClustersJson(raw: string, imageCount: number): BatchImageCluster[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new AppError("Invalid cluster data", 400);
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    throw new AppError("At least one item grouping is required", 400);
+  }
+
+  const assigned = new Set<number>();
+  const clusters: BatchImageCluster[] = [];
+
+  for (const entry of parsed) {
+    if (!entry || typeof entry !== "object") continue;
+    const obj = entry as Record<string, unknown>;
+    const indices = Array.isArray(obj.imageIndices)
+      ? obj.imageIndices.filter(
+          (v): v is number => typeof v === "number" && v >= 0 && v < imageCount
+        )
+      : [];
+    const unique = [...new Set(indices)].filter((i) => !assigned.has(i));
+    if (unique.length === 0) continue;
+    unique.forEach((i) => assigned.add(i));
+
+    const label =
+      typeof obj.label === "string" && obj.label.trim()
+        ? obj.label.trim()
+        : `Item ${clusters.length + 1}`;
+    let heroIndex = typeof obj.heroIndex === "number" ? obj.heroIndex : 0;
+    if (heroIndex < 0 || heroIndex >= unique.length) heroIndex = 0;
+
+    clusters.push({ label, imageIndices: unique, heroIndex });
+  }
+
+  if (assigned.size !== imageCount) {
+    throw new AppError("Every photo must be assigned to exactly one item", 400);
+  }
+
+  const maxItems = getBatchMaxItems();
+  if (clusters.length === 0) {
+    throw new AppError("At least one item grouping is required", 400);
+  }
+  if (clusters.length > maxItems) {
+    throw new AppError(`Maximum ${maxItems} listings per batch`, 400);
+  }
+
+  return clusters;
+}
+
+/** Build item groups from AI-confirmed cluster assignments */
+export function buildBatchItemGroupsFromClusters(
+  files: File[],
+  clusters: BatchImageCluster[],
+  globalFields: ItemIntakeFields
+): { files: File[]; fields: ItemIntakeFields }[] {
+  const maxPerItem = getMaxImagesPerClusterItem();
+
+  return clusters.map((cluster) => {
+    const ordered = orderFilesForCluster(files, cluster).slice(0, maxPerItem);
+    const notes = [globalFields.freeformNotes, cluster.label].filter(Boolean).join("\n");
+    return {
+      files: ordered,
+      fields: {
+        ...globalFields,
+        freeformNotes: notes || undefined,
+      },
+    };
+  });
 }
 
 /** Build item groups from one multi-file upload + split mode */
@@ -140,10 +220,28 @@ export function parseBatchItemsFromFormData(formData: FormData): {
 
 export async function createBatchFromFormData(formData: FormData) {
   const legacy = parseBatchItemsFromFormData(formData);
-  const groups =
-    legacy.length > 0
-      ? legacy.map((e) => ({ files: e.files, fields: e.fields }))
-      : buildBatchItemGroups(formData).groups;
+  let groups: { files: File[]; fields: ItemIntakeFields }[];
+  let maxPerItem: number | undefined;
+
+  if (legacy.length > 0) {
+    groups = legacy.map((e) => ({ files: e.files, fields: e.fields }));
+  } else {
+    const files = formData
+      .getAll("images")
+      .filter((f): f is File => f instanceof File && f.size > 0);
+    const clustersRaw = formData.get("meta[clusters]");
+    if (typeof clustersRaw === "string" && clustersRaw.trim()) {
+      const globalFields = parseGlobalFields(formData);
+      const clusters = parseClustersJson(clustersRaw, files.length);
+      groups = buildBatchItemGroupsFromClusters(files, clusters, globalFields);
+      maxPerItem = getMaxImagesPerClusterItem();
+    } else {
+      const built = buildBatchItemGroups(formData);
+      groups = built.groups;
+      maxPerItem =
+        built.splitMode === "single" ? getMaxImagesPerClusterItem() : undefined;
+    }
+  }
 
   if (groups.length === 0) {
     throw new AppError("Add at least one photo", 400);
@@ -155,11 +253,6 @@ export async function createBatchFromFormData(formData: FormData) {
       totalItems: groups.length,
     },
   });
-
-  const maxPerItem =
-    formData.get("meta[splitMode]") === "single"
-      ? parseInt(process.env.BATCH_SINGLE_MAX_IMAGES ?? "10", 10) || 10
-      : undefined;
 
   const itemIds: string[] = [];
   for (let i = 0; i < groups.length; i++) {
