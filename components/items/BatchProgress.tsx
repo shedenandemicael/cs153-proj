@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { BulkPublishBar } from "@/components/ebay/BulkPublishBar";
+import { PublishItemButton } from "@/components/ebay/PublishItemButton";
 
 interface BatchSummary {
   id: string;
@@ -22,24 +24,40 @@ interface BatchSummary {
     title: string | null;
     startingPrice: number | null;
     imagePath: string | null;
+    ebayListingUrl: string | null;
+    canPublish: boolean;
   }>;
 }
 
 export function BatchProgress({ batchId }: { batchId: string }) {
   const router = useRouter();
   const [summary, setSummary] = useState<BatchSummary | null>(null);
+  const [sellConnected, setSellConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loadSummary = useCallback(async () => {
+    const res = await fetch(`/api/items/batch/${batchId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error ?? "Failed to load batch");
+    setSummary(data);
+    return data as BatchSummary;
+  }, [batchId]);
+
+  const loadSellStatus = useCallback(async () => {
+    const res = await fetch("/api/ebay/sell/status");
+    if (res.ok) {
+      const data = await res.json();
+      setSellConnected(Boolean(data.connected));
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
 
     async function poll() {
       try {
-        const res = await fetch(`/api/items/batch/${batchId}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Failed to load batch");
+        const data = await loadSummary();
         if (!active) return;
-        setSummary(data);
 
         if (data.status === "processing" || data.status === "pending") {
           setTimeout(poll, 2000);
@@ -51,11 +69,12 @@ export function BatchProgress({ batchId }: { batchId: string }) {
       }
     }
 
+    loadSellStatus();
     poll();
     return () => {
       active = false;
     };
-  }, [batchId, router]);
+  }, [batchId, router, loadSummary, loadSellStatus]);
 
   if (error) {
     return <Alert variant="error">{error}</Alert>;
@@ -68,6 +87,12 @@ export function BatchProgress({ batchId }: { batchId: string }) {
   const progress =
     summary.totalItems > 0 ? Math.round((summary.processed / summary.totalItems) * 100) : 0;
   const isDone = summary.status === "completed";
+  const publishableIds = summary.items.filter((item) => item.canPublish).map((item) => item.id);
+
+  async function handlePublishComplete() {
+    await loadSummary();
+    await loadSellStatus();
+  }
 
   return (
     <div className="space-y-6">
@@ -110,6 +135,14 @@ export function BatchProgress({ batchId }: { batchId: string }) {
         </dl>
       </Card>
 
+      {isDone && (
+        <BulkPublishBar
+          publishableItemIds={publishableIds}
+          returnTo={`/items/batch/${batchId}`}
+          onComplete={handlePublishComplete}
+        />
+      )}
+
       <Card>
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Items in batch</h3>
         <ul className="divide-y divide-slate-100">
@@ -134,6 +167,18 @@ export function BatchProgress({ batchId }: { batchId: string }) {
                 )}
               </div>
               <Badge status={item.status} />
+              {item.ebayListingUrl ? (
+                <a
+                  href={item.ebayListingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"
+                >
+                  View on eBay
+                </a>
+              ) : item.canPublish && sellConnected ? (
+                <PublishItemButton itemId={item.id} onPublished={handlePublishComplete} />
+              ) : null}
               <Link
                 href={`/items/${item.id}`}
                 className="text-sm font-medium text-[var(--spot)] hover:text-[var(--spot-dark)] hover:underline"

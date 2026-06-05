@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { publishListingToEbay, getEbaySellStatus } from "@/lib/ebay/sell/publish-listing";
+import { getEbaySellStatus } from "@/lib/ebay/sell/publish-listing";
+import { publishItemById } from "@/lib/services/publish-item";
 import { canPublishToEbay } from "@/lib/utils/ebay-config";
-import { prisma } from "@/lib/db/prisma";
 import { getErrorMessage, AppError } from "@/lib/utils/errors";
 
 /**
@@ -29,35 +29,7 @@ export async function POST(
       );
     }
 
-    const item = await prisma.item.findUnique({
-      where: { id },
-      include: {
-        listingDraft: true,
-        images: { orderBy: { sortOrder: "asc" } },
-      },
-    });
-
-    if (!item?.listingDraft) {
-      throw new AppError("Approve a listing draft before publishing.", 400);
-    }
-
-    const draft = item.listingDraft;
-    if (draft.status !== "APPROVED") {
-      throw new AppError("Draft must be approved before publishing.", 400);
-    }
-
-    const result = await publishListingToEbay({ ...item, listingDraft: draft });
-
-    await prisma.listingDraft.update({
-      where: { itemId: id },
-      data: {
-        ebayOfferId: result.offerId,
-        ebayListingUrl: result.listingUrl ?? null,
-        publishedAt: new Date(),
-      },
-    });
-
-    await prisma.item.update({ where: { id }, data: { status: "PUBLISHED" } });
+    const result = await publishItemById(id);
 
     return NextResponse.json({
       ok: true,

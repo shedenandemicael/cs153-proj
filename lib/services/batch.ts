@@ -3,6 +3,7 @@ import {
   orderFilesForCluster,
   type BatchImageCluster,
 } from "@/lib/ai/cluster-batch-images";
+import { isItemPublishable } from "@/lib/ebay/sell/publish-eligibility";
 import { prisma } from "@/lib/db/prisma";
 import {
   createItemWithImages,
@@ -339,6 +340,8 @@ export async function getBatchSummary(batchId: string) {
       title: item.listingDraft?.title ?? null,
       startingPrice: item.listingDraft?.startingPrice ?? null,
       imagePath: item.images[0]?.path ?? null,
+      ebayListingUrl: item.listingDraft?.ebayListingUrl ?? null,
+      canPublish: isItemPublishable(item),
     })),
   };
 }

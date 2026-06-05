@@ -1,6 +1,10 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { DeleteItemButton } from "@/components/items/DeleteItemButton";
+import { PublishItemButton } from "@/components/ebay/PublishItemButton";
 import { formatRelativeTime } from "@/lib/utils/item-status";
 
 export interface DashboardItem {
@@ -11,9 +15,18 @@ export interface DashboardItem {
   updatedAt: string;
   imagePath: string | null;
   ebayListingUrl: string | null;
+  canPublish: boolean;
 }
 
-export function ItemTable({ items }: { items: DashboardItem[] }) {
+export function ItemTable({
+  items,
+  sellConnected,
+}: {
+  items: DashboardItem[];
+  sellConnected: boolean;
+}) {
+  const router = useRouter();
+
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)] p-10 text-center">
@@ -79,7 +92,7 @@ export function ItemTable({ items }: { items: DashboardItem[] }) {
                 {formatRelativeTime(item.updatedAt)}
               </td>
               <td className="px-4 py-3 text-right">
-                <div className="flex flex-col items-end gap-1">
+                <div className="flex flex-col items-end gap-1.5">
                   {item.ebayListingUrl ? (
                     <a
                       href={item.ebayListingUrl}
@@ -89,6 +102,11 @@ export function ItemTable({ items }: { items: DashboardItem[] }) {
                     >
                       View on eBay
                     </a>
+                  ) : item.canPublish && sellConnected ? (
+                    <PublishItemButton
+                      itemId={item.id}
+                      onPublished={() => router.refresh()}
+                    />
                   ) : null}
                   <div className="flex items-center gap-2">
                     <Link
