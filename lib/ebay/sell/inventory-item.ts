@@ -1,6 +1,6 @@
 import type { ListingDraft, UploadedImage } from "@prisma/client";
 import { parseJsonArray, parseJsonObject } from "@/lib/utils/json";
-import { mapConditionToEbayEnum } from "./condition";
+import { resolveConditionForCategory } from "./condition";
 import { buildInventoryAspects } from "./build-aspects";
 import { ebaySellFetch } from "./http";
 
@@ -39,10 +39,16 @@ export async function createOrReplaceInventoryItem(params: {
     throw new Error("At least one public image URL is required to publish on eBay.");
   }
 
+  const condition = await resolveConditionForCategory(
+    draft.categoryId,
+    draft.conditionDesc,
+    params.notesCondition ?? undefined
+  );
+
   await ebaySellFetch(`/sell/inventory/v1/inventory_item/${encodeURIComponent(params.sku)}`, {
     method: "PUT",
     body: {
-      condition: mapConditionToEbayEnum(draft.conditionDesc, params.notesCondition ?? undefined),
+      condition,
       product: {
         title: draft.title.slice(0, 80),
         description,
