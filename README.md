@@ -167,6 +167,22 @@ lib/pricing/        Price determination (GPT-4o)
 app/items/[id]/     Agent result + run timeline
 ```
 
-## CS153 fit
+## CS153 project summary
 
-Demonstrates a **fully agentic workflow** with explicit policy gates instead of human-in-the-loop UI. Evaluation metrics are recorded automatically (`fieldsEditedByUser` stays 0 unless overrides are added later).
+| | |
+|---|---|
+| **Title** | Autonomous eBay Resale Agent (Spot) |
+| **Track** | Automation / Agent Systems |
+| **Repo** | [github.com/shedenandemicael/cs153-proj](https://github.com/shedenandemicael/cs153-proj) |
+
+**Problem.** Listing resale items on eBay is repetitive: research comps, set a price, write title/description/specifics, then publish.
+
+**What the agent does.** Upload photos (+ optional notes) → identify item → fetch eBay comparables → vision-based pricing → generate listing copy → policy-gated auto-approve → record metrics → optional sandbox publish. Human steps are limited to answering clarifying questions, re-running, or manually publishing.
+
+**Evaluation.** Each autonomous run records metrics at `/items/[id]/evaluate`: estimated time saved, fields generated, human edits before approval, and an automated quality score (derived from model confidence). The app also supports a manual listing-quality rubric (title clarity, description completeness, pricing reasonableness, category accuracy) via `PATCH /api/items/[id]/evaluation`.
+
+**Safety.** Publish is off by default (`AGENT_AUTO_PUBLISH=false`). Low-confidence drafts and compliance warnings (authenticity, recall, counterfeit) fail the pipeline instead of auto-approving.
+
+**AI usage.** Much of the code was written using AI tools (Codex, Cursor), but I did the product design — problem framing, agent workflow, policy gates, and integration architecture.
+
+**Stack.** Next.js, TypeScript, Prisma/Neon Postgres, OpenAI (vision + text), eBay Browse/Insights/Sell APIs.
